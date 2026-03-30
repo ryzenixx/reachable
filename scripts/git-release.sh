@@ -94,6 +94,13 @@ switch_branch() {
   git checkout "${branch}" >/dev/null
 }
 
+sync_branch_with_origin() {
+  local branch="$1"
+  log "Syncing ${branch} with origin/${branch}..."
+  switch_branch "${branch}"
+  git pull --ff-only origin "${branch}"
+}
+
 prompt_next_version() {
   local base="$1"
   local major minor patch
@@ -184,6 +191,11 @@ main() {
   git fetch origin --tags --prune
   git fetch origin "${DEV_BRANCH}" "${PROD_BRANCH}" --prune
 
+  log "Initial branch synchronization..."
+  sync_branch_with_origin "${DEV_BRANCH}"
+  sync_branch_with_origin "${PROD_BRANCH}"
+  sync_branch_with_origin "${DEV_BRANCH}"
+
   local root_version api_version tag_version next_version next_tag
   local prepared_version_already_in_files=false
   root_version="$(version_from_file "${VERSION_FILE}")"
@@ -231,9 +243,6 @@ main() {
   log "Switching to ${PROD_BRANCH}..."
   switch_branch "${PROD_BRANCH}"
 
-  log "Updating ${PROD_BRANCH}..."
-  git pull --ff-only origin "${PROD_BRANCH}"
-
   log "Merging ${DEV_BRANCH} into ${PROD_BRANCH}..."
   git merge --no-edit "${DEV_BRANCH}"
 
@@ -246,9 +255,9 @@ main() {
 
   create_github_release_if_possible "${next_tag}"
 
-  log "Switching back to ${DEV_BRANCH}..."
-  switch_branch "${DEV_BRANCH}"
-  git pull --ff-only origin "${DEV_BRANCH}"
+  log "Final branch synchronization..."
+  sync_branch_with_origin "${PROD_BRANCH}"
+  sync_branch_with_origin "${DEV_BRANCH}"
 
   log ""
   log "Release completed successfully: ${next_tag}"
