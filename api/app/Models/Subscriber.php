@@ -14,6 +14,7 @@ class Subscriber extends Model
 {
     /** @use HasFactory<SubscriberFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public const UPDATED_AT = null;

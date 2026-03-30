@@ -1,36 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use Illuminate\Support\Facades\Gate;
-use Laravel\Horizon\Horizon;
 use Laravel\Horizon\HorizonApplicationServiceProvider;
 
 class HorizonServiceProvider extends HorizonApplicationServiceProvider
 {
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         parent::boot();
-
-        // Horizon::routeSmsNotificationsTo('15556667777');
-        // Horizon::routeMailNotificationsTo('example@example.com');
-        // Horizon::routeSlackNotificationsTo('slack-webhook-url', '#channel');
     }
 
-    /**
-     * Register the Horizon gate.
-     *
-     * This gate determines who can access Horizon in non-local environments.
-     */
     protected function gate(): void
     {
-        Gate::define('viewHorizon', function ($user = null) {
-            return in_array(optional($user)->email, [
-                //
-            ]);
+        $allowedEmails = array_values(array_filter(
+            array_map(
+                static fn (string $email): string => trim($email),
+                explode(',', (string) env('HORIZON_ALLOWED_EMAILS', ''))
+            ),
+            static fn (string $email): bool => $email !== ''
+        ));
+
+        Gate::define('viewHorizon', static function ($user = null) use ($allowedEmails): bool {
+            if (app()->environment('local')) {
+                return true;
+            }
+
+            if (! is_object($user) || ! isset($user->email) || ! is_string($user->email)) {
+                return false;
+            }
+
+            return in_array($user->email, $allowedEmails, true);
         });
     }
 }

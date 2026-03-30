@@ -19,9 +19,7 @@ class ServiceStatusChanged implements ShouldBroadcast
     use InteractsWithSockets;
     use SerializesModels;
 
-    public function __construct(public readonly Service $service)
-    {
-    }
+    public function __construct(public readonly Service $service) {}
 
     /**
      * @return array<int, Channel|PrivateChannel>

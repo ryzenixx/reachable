@@ -17,6 +17,7 @@ class Service extends Model
 {
     /** @use HasFactory<ServiceFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = false;

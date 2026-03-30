@@ -19,8 +19,7 @@ class BootstrapOnboardingAction
     public function __construct(
         private readonly CreateApiTokenAction $createApiTokenAction,
         private readonly OnboardingStateService $onboardingStateService,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array{

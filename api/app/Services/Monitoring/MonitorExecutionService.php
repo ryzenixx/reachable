@@ -30,9 +30,7 @@ class MonitorExecutionService
     public function __construct(
         private readonly IncidentService $incidentService,
         private readonly UptimeAggregationService $uptimeAggregationService,
-    )
-    {
-    }
+    ) {}
 
     public function execute(Monitor $monitor): MonitorCheck
     {

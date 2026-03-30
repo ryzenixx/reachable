@@ -12,9 +12,7 @@ use Illuminate\Support\Carbon;
 
 class PublicStatusPageService
 {
-    public function __construct(private readonly GlobalStatusService $globalStatusService)
-    {
-    }
+    public function __construct(private readonly GlobalStatusService $globalStatusService) {}
 
     /**
      * @return array<string, mixed>

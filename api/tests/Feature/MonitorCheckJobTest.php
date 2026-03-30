@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\IncidentStatus;
 use App\Enums\IncidentImpact;
+use App\Enums\IncidentStatus;
 use App\Enums\MonitorCheckStatus;
 use App\Enums\MonitorMethod;
 use App\Enums\MonitorType;

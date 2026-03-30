@@ -20,8 +20,7 @@ class SubscriptionConfirmationMail extends Mailable implements ShouldQueue
     public function __construct(
         public readonly Organization $organization,
         public readonly string $confirmUrl,
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {

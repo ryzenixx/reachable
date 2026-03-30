@@ -19,9 +19,7 @@ class IncidentChanged implements ShouldBroadcast
     use InteractsWithSockets;
     use SerializesModels;
 
-    public function __construct(public readonly Incident $incident)
-    {
-    }
+    public function __construct(public readonly Incident $incident) {}
 
     /**
      * @return array<int, Channel|PrivateChannel>

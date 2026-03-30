@@ -14,6 +14,7 @@ class UptimeMetric extends Model
 {
     /** @use HasFactory<UptimeMetricFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = false;

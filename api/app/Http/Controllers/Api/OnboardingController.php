@@ -18,8 +18,7 @@ class OnboardingController extends Controller
     public function __construct(
         private readonly OnboardingStateService $onboardingStateService,
         private readonly BootstrapOnboardingAction $bootstrapOnboardingAction,
-    ) {
-    }
+    ) {}
 
     public function state(): JsonResponse
     {

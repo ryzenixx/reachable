@@ -14,9 +14,7 @@ use Illuminate\Http\Request;
 
 class ApiTokenController extends Controller
 {
-    public function __construct(private readonly CreateApiTokenAction $createApiTokenAction)
-    {
-    }
+    public function __construct(private readonly CreateApiTokenAction $createApiTokenAction) {}
 
     public function index(Request $request): JsonResponse
     {

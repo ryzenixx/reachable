@@ -12,12 +12,11 @@ use App\Models\Organization;
 use App\Models\Subscriber;
 use App\Services\Mail\OrganizationMailerFactory;
 use Illuminate\Contracts\Mail\Mailable;
+use Illuminate\Contracts\Mail\Mailer;
 
 class SubscriberNotificationService
 {
-    public function __construct(private readonly OrganizationMailerFactory $organizationMailerFactory)
-    {
-    }
+    public function __construct(private readonly OrganizationMailerFactory $organizationMailerFactory) {}
 
     public function sendSubscriptionConfirmation(Organization $organization, Subscriber $subscriber): void
     {
@@ -70,7 +69,7 @@ class SubscriberNotificationService
     }
 
     private function sendMailable(
-        \Illuminate\Contracts\Mail\Mailer $mailer,
+        Mailer $mailer,
         string $recipient,
         Mailable $mailable,
     ): void {

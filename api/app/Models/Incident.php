@@ -18,6 +18,7 @@ class Incident extends Model
 {
     /** @use HasFactory<IncidentFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = false;

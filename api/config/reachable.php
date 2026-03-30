@@ -17,4 +17,3 @@ return [
         'allow_private_targets' => env('MONITOR_ALLOW_PRIVATE_TARGETS', false),
     ],
 ];
-

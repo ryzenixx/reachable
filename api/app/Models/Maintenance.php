@@ -15,6 +15,7 @@ class Maintenance extends Model
 {
     /** @use HasFactory<MaintenanceFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = false;

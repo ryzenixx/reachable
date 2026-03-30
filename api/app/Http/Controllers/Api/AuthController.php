@@ -16,9 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(private readonly CreateApiTokenAction $createApiTokenAction)
-    {
-    }
+    public function __construct(private readonly CreateApiTokenAction $createApiTokenAction) {}
 
     /**
      * @throws ValidationException

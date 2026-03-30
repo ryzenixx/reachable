@@ -22,8 +22,7 @@ class PublicStatusController extends Controller
     public function __construct(
         private readonly PublicStatusPageService $publicStatusPageService,
         private readonly CreateSubscriberAction $createSubscriberAction,
-    ) {
-    }
+    ) {}
 
     public function show(Request $request): JsonResponse
     {

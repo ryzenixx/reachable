@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\IncidentImpact;
 use App\Enums\IncidentStatus;
+use App\Http\Controllers\Api\Concerns\ResolvesAuthenticatedContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreIncidentRequest;
 use App\Http\Requests\StoreIncidentUpdateRequest;
@@ -13,8 +14,6 @@ use App\Http\Requests\UpdateIncidentRequest;
 use App\Http\Resources\IncidentResource;
 use App\Http\Resources\IncidentUpdateResource;
 use App\Models\Incident;
-use App\Models\Organization;
-use App\Models\User;
 use App\Services\Incidents\IncidentService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -23,19 +22,16 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class IncidentController extends Controller
 {
-    public function __construct(private readonly IncidentService $incidentService)
-    {
-    }
+    use ResolvesAuthenticatedContext;
+
+    public function __construct(private readonly IncidentService $incidentService) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
-        $user = $request->user();
-
         $status = $request->query('status');
 
         $query = Incident::query()
-            ->where('organization_id', $user->organization_id)
+            ->where('organization_id', $this->organizationId($request))
             ->with(['services', 'updates' => static function ($builder): void {
                 $builder->latest('created_at');
             }])
@@ -54,15 +50,10 @@ class IncidentController extends Controller
 
     public function store(StoreIncidentRequest $request): IncidentResource
     {
-        /** @var User $user */
-        $user = $request->user();
-        /** @var Organization $organization */
-        $organization = $user->organization;
-
         $validated = $request->validated();
 
         $incident = $this->incidentService->createIncident(
-            organization: $organization,
+            organization: $this->organization($request),
             title: $validated['title'],
             status: IncidentStatus::from($validated['status']),
             impact: IncidentImpact::from($validated['impact']),
@@ -73,7 +64,7 @@ class IncidentController extends Controller
         return new IncidentResource($incident->load('services', 'updates'));
     }
 
-    public function show(Request $request, Incident $incident): IncidentResource
+    public function show(Incident $incident): IncidentResource
     {
         $this->authorize('view', $incident);
 
@@ -113,7 +104,7 @@ class IncidentController extends Controller
         return new IncidentUpdateResource($update);
     }
 
-    public function destroy(Request $request, Incident $incident): JsonResponse
+    public function destroy(Incident $incident): JsonResponse
     {
         $this->authorize('delete', $incident);
 

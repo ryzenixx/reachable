@@ -73,4 +73,3 @@ it('rate limits repeated failed login attempts', function (): void {
         'device_name' => 'dashboard',
     ])->assertStatus(429);
 });
-

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ResolvesAuthenticatedContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMonitorRequest;
 use App\Http\Requests\UpdateMonitorRequest;
@@ -12,25 +13,26 @@ use App\Http\Resources\MonitorResource;
 use App\Jobs\RunMonitorCheck;
 use App\Models\Monitor;
 use App\Models\Service;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class MonitorController extends Controller
 {
+    use ResolvesAuthenticatedContext;
+
     private const CHECKS_LIMIT = 100;
+
+    private const CHECKS_TIMELINE_LIMIT = 200;
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
-        $user = $request->user();
-
         $serviceId = $request->query('service_id');
+        $organizationId = $this->organizationId($request);
 
         $query = Monitor::query()
-            ->whereHas('service', static function ($builder) use ($user): void {
-                $builder->where('organization_id', $user->organization_id);
+            ->whereHas('service', static function ($builder) use ($organizationId): void {
+                $builder->where('organization_id', $organizationId);
             })
             ->with([
                 'service',
@@ -49,14 +51,12 @@ class MonitorController extends Controller
 
     public function store(StoreMonitorRequest $request): MonitorResource
     {
-        /** @var User $user */
-        $user = $request->user();
         $validated = $request->validated();
 
         /** @var Service|null $service */
         $service = Service::query()
             ->where('id', $validated['service_id'])
-            ->where('organization_id', $user->organization_id)
+            ->where('organization_id', $this->organizationId($request))
             ->first();
 
         abort_if(! $service instanceof Service, 403, 'Service is not available in your organization.');
@@ -68,7 +68,7 @@ class MonitorController extends Controller
         return new MonitorResource($this->loadMonitorWithRelations($monitor));
     }
 
-    public function show(Request $request, Monitor $monitor): MonitorResource
+    public function show(Monitor $monitor): MonitorResource
     {
         $this->authorize('view', $monitor);
 
@@ -85,7 +85,7 @@ class MonitorController extends Controller
         return new MonitorResource($this->loadMonitorWithRelations($monitor->refresh()));
     }
 
-    public function destroy(Request $request, Monitor $monitor): JsonResponse
+    public function destroy(Monitor $monitor): JsonResponse
     {
         $this->authorize('delete', $monitor);
 
@@ -94,11 +94,11 @@ class MonitorController extends Controller
         return response()->json(status: 204);
     }
 
-    public function checks(Request $request, Monitor $monitor): AnonymousResourceCollection
+    public function checks(Monitor $monitor): AnonymousResourceCollection
     {
         $this->authorize('view', $monitor);
 
-        $checks = $monitor->checks()->latest('checked_at')->limit(200)->get();
+        $checks = $monitor->checks()->latest('checked_at')->limit(self::CHECKS_TIMELINE_LIMIT)->get();
 
         return MonitorCheckResource::collection($checks);
     }

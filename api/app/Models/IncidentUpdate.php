@@ -15,6 +15,7 @@ class IncidentUpdate extends Model
 {
     /** @use HasFactory<IncidentUpdateFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public const UPDATED_AT = null;

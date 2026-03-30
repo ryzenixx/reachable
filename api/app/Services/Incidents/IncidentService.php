@@ -19,12 +19,10 @@ use Illuminate\Support\Facades\DB;
 
 class IncidentService
 {
-    public function __construct(private readonly SubscriberNotificationService $notificationService)
-    {
-    }
+    public function __construct(private readonly SubscriberNotificationService $notificationService) {}
 
     /**
-     * @param list<string> $serviceIds
+     * @param  list<string>  $serviceIds
      */
     public function createIncident(
         Organization $organization,
@@ -101,8 +99,8 @@ class IncidentService
                 ->where('organization_id', $incident->organization_id)
                 ->whereIn('id', $incident->services->pluck('id'))
                 ->update([
-                'status' => ServiceStatus::Operational->value,
-            ]);
+                    'status' => ServiceStatus::Operational->value,
+                ]);
 
             $this->notificationService->sendIncidentResolved($incident);
         }

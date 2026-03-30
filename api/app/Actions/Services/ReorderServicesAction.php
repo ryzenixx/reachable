@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 class ReorderServicesAction
 {
     /**
-     * @param array<int, array{id: string, order: int}> $rows
+     * @param  array<int, array{id: string, order: int}>  $rows
      */
     public function execute(User $user, array $rows): void
     {

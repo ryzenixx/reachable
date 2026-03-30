@@ -11,7 +11,7 @@ use Laravel\Sanctum\NewAccessToken;
 class CreateApiTokenAction
 {
     /**
-     * @param list<string> $abilities
+     * @param  list<string>  $abilities
      */
     public function execute(User $user, string $name, array $abilities = ['*'], ?Carbon $expiresAt = null): NewAccessToken
     {

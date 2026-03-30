@@ -7,8 +7,8 @@ namespace App\Http\Requests;
 use App\Enums\IncidentImpact;
 use App\Enums\IncidentStatus;
 use App\Models\Incident;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

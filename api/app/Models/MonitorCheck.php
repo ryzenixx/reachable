@@ -15,6 +15,7 @@ class MonitorCheck extends Model
 {
     /** @use HasFactory<MonitorCheckFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = false;

@@ -14,6 +14,7 @@ class Organization extends Model
 {
     /** @use HasFactory<OrganizationFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = false;

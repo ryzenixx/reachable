@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Subscribers\CreateSubscriberAction;
+use App\Http\Controllers\Api\Concerns\ResolvesAuthenticatedContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSubscriberRequest;
 use App\Http\Resources\SubscriberResource;
 use App\Models\Subscriber;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -17,17 +17,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubscriberController extends Controller
 {
-    public function __construct(private readonly CreateSubscriberAction $createSubscriberAction)
-    {
-    }
+    use ResolvesAuthenticatedContext;
+
+    public function __construct(private readonly CreateSubscriberAction $createSubscriberAction) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
-        $user = $request->user();
-
         $rows = Subscriber::query()
-            ->where('organization_id', $user->organization_id)
+            ->where('organization_id', $this->organizationId($request))
             ->latest('created_at')
             ->get();
 
@@ -36,11 +33,8 @@ class SubscriberController extends Controller
 
     public function store(StoreSubscriberRequest $request): SubscriberResource
     {
-        /** @var User $user */
-        $user = $request->user();
-
         $subscriber = $this->createSubscriberAction->execute(
-            organization: $user->organization,
+            organization: $this->organization($request),
             email: $request->validated('email'),
         );
 
@@ -49,11 +43,8 @@ class SubscriberController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-
         $rows = Subscriber::query()
-            ->where('organization_id', $user->organization_id)
+            ->where('organization_id', $this->organizationId($request))
             ->orderBy('email')
             ->cursor();
 
@@ -78,7 +69,7 @@ class SubscriberController extends Controller
         }, 'subscribers.csv');
     }
 
-    public function destroy(Request $request, Subscriber $subscriber): JsonResponse
+    public function destroy(Subscriber $subscriber): JsonResponse
     {
         $this->authorize('delete', $subscriber);
 

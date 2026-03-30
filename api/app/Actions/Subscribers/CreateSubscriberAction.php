@@ -11,9 +11,7 @@ use Illuminate\Support\Str;
 
 class CreateSubscriberAction
 {
-    public function __construct(private readonly SubscriberNotificationService $notificationService)
-    {
-    }
+    public function __construct(private readonly SubscriberNotificationService $notificationService) {}
 
     public function execute(Organization $organization, string $email): Subscriber
     {

@@ -5,25 +5,24 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Enums\MaintenanceStatus;
+use App\Http\Controllers\Api\Concerns\ResolvesAuthenticatedContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMaintenanceRequest;
 use App\Http\Requests\UpdateMaintenanceRequest;
 use App\Http\Resources\MaintenanceResource;
 use App\Models\Maintenance;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class MaintenanceController extends Controller
 {
+    use ResolvesAuthenticatedContext;
+
     public function index(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
-        $user = $request->user();
-
         $rows = Maintenance::query()
-            ->where('organization_id', $user->organization_id)
+            ->where('organization_id', $this->organizationId($request))
             ->latest('scheduled_at')
             ->get();
 
@@ -32,20 +31,18 @@ class MaintenanceController extends Controller
 
     public function store(StoreMaintenanceRequest $request): MaintenanceResource
     {
-        /** @var User $user */
-        $user = $request->user();
         $validated = $request->validated();
 
         /** @var Maintenance $maintenance */
         $maintenance = Maintenance::query()->create([
             ...$validated,
-            'organization_id' => $user->organization_id,
+            'organization_id' => $this->organizationId($request),
         ]);
 
         return new MaintenanceResource($maintenance);
     }
 
-    public function show(Request $request, Maintenance $maintenance): MaintenanceResource
+    public function show(Maintenance $maintenance): MaintenanceResource
     {
         $this->authorize('view', $maintenance);
 
@@ -62,7 +59,7 @@ class MaintenanceController extends Controller
         return new MaintenanceResource($maintenance->refresh());
     }
 
-    public function complete(Request $request, Maintenance $maintenance): MaintenanceResource
+    public function complete(Maintenance $maintenance): MaintenanceResource
     {
         $this->authorize('update', $maintenance);
 
@@ -73,7 +70,7 @@ class MaintenanceController extends Controller
         return new MaintenanceResource($maintenance->refresh());
     }
 
-    public function destroy(Request $request, Maintenance $maintenance): JsonResponse
+    public function destroy(Maintenance $maintenance): JsonResponse
     {
         $this->authorize('delete', $maintenance);
 

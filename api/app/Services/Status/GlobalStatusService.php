@@ -36,7 +36,7 @@ class GlobalStatusService
     }
 
     /**
-     * @param Collection<int, Service> $services
+     * @param  Collection<int, Service>  $services
      */
     public function resolveGlobalStatus(Collection $services): string
     {
