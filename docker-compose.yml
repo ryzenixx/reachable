@@ -8,8 +8,7 @@ services:
       REACHABLE_DOMAIN: ${REACHABLE_DOMAIN:-reachable.localhost}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
     ports:
-      - "80:80"
-      - "443:443"
+      - "3000:80"
     volumes:
       - reachable_data:/var/www/html/storage
       - reachable_postgres_data:/var/lib/postgresql/data

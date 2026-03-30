@@ -39,9 +39,9 @@ docker compose up -d
 
 ### First Run
 
-1. Point your domain DNS A/AAAA record to your server IP
-2. Open `https://your-domain/setup`
-3. Create organization + owner account
+1. Reachable is available directly on `http://SERVER_IP:3000`
+2. If you use an external reverse proxy, target `HTTP -> SERVER_IP:3000`
+3. Open `/setup`, create organization + owner account
 4. Continue to `/dashboard`
 
 ## Configuration
@@ -50,7 +50,7 @@ Most setups only need these environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `REACHABLE_DOMAIN` | `reachable.example.com` | Public domain for Reachable |
+| `REACHABLE_DOMAIN` | `reachable.example.com` | Public domain used in generated links (emails, confirmations) |
 | `POSTGRES_PASSWORD` | `CHANGEME` | Database password |
 
 Everything else is configured automatically inside the Reachable image (frontend, API, queue workers, websocket, Redis, PostgreSQL).

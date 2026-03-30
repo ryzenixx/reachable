@@ -25,8 +25,8 @@ export CACHE_STORE="${CACHE_STORE:-redis}"
 export SESSION_DRIVER="${SESSION_DRIVER:-redis}"
 export APP_URL="${APP_URL:-https://${REACHABLE_DOMAIN}}"
 export FRONTEND_URL="${FRONTEND_URL:-https://${REACHABLE_DOMAIN}}"
-export INTERNAL_API_URL="${INTERNAL_API_URL:-http://127.0.0.1:8081/api/v1}"
-export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://${REACHABLE_DOMAIN}/api/v1}"
+export INTERNAL_API_URL="${INTERNAL_API_URL:-http://127.0.0.1/api/v1}"
+export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1/api/v1}"
 export NEXT_PUBLIC_REVERB_HOST="${NEXT_PUBLIC_REVERB_HOST:-${REACHABLE_DOMAIN}}"
 export NEXT_PUBLIC_REVERB_PORT="${NEXT_PUBLIC_REVERB_PORT:-443}"
 export NEXT_PUBLIC_REVERB_SCHEME="${NEXT_PUBLIC_REVERB_SCHEME:-https}"
@@ -49,9 +49,6 @@ fi
 mkdir -p "${PGDATA}" /var/run/postgresql "${REDIS_DATA_DIR}"
 chown -R postgres:postgres "${PGDATA}" /var/run/postgresql
 chown -R redis:redis "${REDIS_DATA_DIR}"
-mkdir -p /var/www/html/storage/traefik
-touch /var/www/html/storage/traefik/acme.json
-chmod 600 /var/www/html/storage/traefik/acme.json || true
 
 if [ ! -s "${PGDATA}/PG_VERSION" ]; then
   echo "Initializing PostgreSQL data directory..."
