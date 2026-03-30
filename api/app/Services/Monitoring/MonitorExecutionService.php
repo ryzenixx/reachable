@@ -19,14 +19,6 @@ use Illuminate\Support\Facades\Http;
 
 class MonitorExecutionService
 {
-    private const RESTRICTED_IPV6_PREFIXES = [
-        '::/128',
-        '::1/128',
-        'fc00::/7',
-        'fe80::/10',
-        'ff00::/8',
-    ];
-
     public function __construct(
         private readonly IncidentService $incidentService,
         private readonly UptimeAggregationService $uptimeAggregationService,
@@ -35,23 +27,6 @@ class MonitorExecutionService
     public function execute(Monitor $monitor): MonitorCheck
     {
         $monitor->loadMissing('service.organization');
-
-        if (! $this->isTargetAllowed($monitor)) {
-            /** @var MonitorCheck $check */
-            $check = MonitorCheck::query()->create([
-                'monitor_id' => $monitor->id,
-                'status' => MonitorCheckStatus::Down,
-                'response_time_ms' => 0,
-                'status_code' => null,
-                'error_message' => 'Target blocked by monitoring security policy',
-                'checked_at' => now(),
-            ]);
-
-            $this->handleIncidentLifecycle($monitor, $check);
-            $this->uptimeAggregationService->aggregateServiceForDate($monitor->service, CarbonImmutable::now());
-
-            return $check;
-        }
 
         $result = match ($monitor->type) {
             MonitorType::Http => $this->runHttpCheck($monitor),
@@ -87,11 +62,12 @@ class MonitorExecutionService
     private function runHttpCheck(Monitor $monitor): array
     {
         $startedAt = microtime(true);
+        $targetUrl = $this->normalizeHttpUrl($monitor->url);
 
         try {
             $response = Http::timeout(max(1, $monitor->timeout_ms / 1000))
                 ->withoutRedirecting()
-                ->send($monitor->method->value, $monitor->url);
+                ->send($monitor->method->value, $targetUrl);
 
             $responseTimeMs = (int) round((microtime(true) - $startedAt) * 1000);
             $statusCode = $response->status();
@@ -162,7 +138,7 @@ class MonitorExecutionService
      */
     private function runPingCheck(Monitor $monitor): array
     {
-        $host = $this->extractTargetHost($monitor);
+        $host = $this->extractHostFromHostLikeValue($monitor->url);
 
         if (! is_string($host) || $host === '') {
             return [
@@ -240,60 +216,19 @@ class MonitorExecutionService
         }
     }
 
-    private function isTargetAllowed(Monitor $monitor): bool
+    private function normalizeHttpUrl(string $url): string
     {
-        if ($this->allowsPrivateTargets()) {
-            return true;
+        $normalized = trim($url);
+
+        if ($normalized === '') {
+            return $normalized;
         }
 
-        $host = $this->extractTargetHost($monitor);
-
-        if (! is_string($host) || $host === '') {
-            return false;
+        if (preg_match('#^[a-z][a-z0-9+.\-]*://#i', $normalized) === 1) {
+            return $normalized;
         }
 
-        if ($this->isLocalHostname($host)) {
-            return false;
-        }
-
-        $ips = $this->resolveHostIps($host);
-
-        if ($ips === []) {
-            return false;
-        }
-
-        foreach ($ips as $ip) {
-            if ($this->isRestrictedIp($ip)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function allowsPrivateTargets(): bool
-    {
-        return (bool) config('reachable.monitoring.allow_private_targets', false);
-    }
-
-    private function extractTargetHost(Monitor $monitor): ?string
-    {
-        return match ($monitor->type) {
-            MonitorType::Http => $this->extractHostFromHttpUrl($monitor->url),
-            MonitorType::Tcp, MonitorType::Ping => $this->extractHostFromHostLikeValue($monitor->url),
-            default => null,
-        };
-    }
-
-    private function extractHostFromHttpUrl(string $url): ?string
-    {
-        $host = parse_url($url, PHP_URL_HOST);
-
-        if (! is_string($host) || $host === '') {
-            return null;
-        }
-
-        return mb_strtolower($host);
+        return sprintf('http://%s', $normalized);
     }
 
     private function extractHostFromHostLikeValue(string $value): ?string
@@ -313,97 +248,5 @@ class MonitorExecutionService
         }
 
         return mb_strtolower($host);
-    }
-
-    private function isLocalHostname(string $host): bool
-    {
-        $normalized = mb_strtolower(trim($host));
-
-        return in_array($normalized, ['localhost', 'host.docker.internal'], true)
-            || str_ends_with($normalized, '.local')
-            || str_ends_with($normalized, '.localhost');
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function resolveHostIps(string $host): array
-    {
-        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            return [$host];
-        }
-
-        $resolved = [];
-
-        $ipv4 = gethostbynamel($host);
-        if (is_array($ipv4)) {
-            $resolved = [...$resolved, ...$ipv4];
-        }
-
-        $ipv6Records = dns_get_record($host, DNS_AAAA);
-        if (is_array($ipv6Records)) {
-            foreach ($ipv6Records as $record) {
-                if (! isset($record['ipv6']) || ! is_string($record['ipv6'])) {
-                    continue;
-                }
-
-                $resolved[] = $record['ipv6'];
-            }
-        }
-
-        return array_values(array_unique(array_filter(
-            $resolved,
-            static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP) !== false,
-        )));
-    }
-
-    private function isRestrictedIp(string $ip): bool
-    {
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
-            return filter_var(
-                $ip,
-                FILTER_VALIDATE_IP,
-                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
-            ) === false;
-        }
-
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
-            foreach (self::RESTRICTED_IPV6_PREFIXES as $cidr) {
-                if ($this->ipInCidr($ip, $cidr)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private function ipInCidr(string $ip, string $cidr): bool
-    {
-        [$subnet, $prefix] = explode('/', $cidr, 2);
-        $ipBin = inet_pton($ip);
-        $subnetBin = inet_pton($subnet);
-
-        if ($ipBin === false || $subnetBin === false || strlen($ipBin) !== strlen($subnetBin)) {
-            return false;
-        }
-
-        $prefixLength = (int) $prefix;
-        $bytes = intdiv($prefixLength, 8);
-        $bits = $prefixLength % 8;
-
-        if ($bytes > 0 && substr($ipBin, 0, $bytes) !== substr($subnetBin, 0, $bytes)) {
-            return false;
-        }
-
-        if ($bits === 0) {
-            return true;
-        }
-
-        $mask = ((0xFF00 >> $bits) & 0xFF);
-        $ipByte = ord($ipBin[$bytes]);
-        $subnetByte = ord($subnetBin[$bytes]);
-
-        return ($ipByte & $mask) === ($subnetByte & $mask);
     }
 }
