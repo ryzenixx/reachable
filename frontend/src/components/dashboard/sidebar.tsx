@@ -15,8 +15,11 @@ import {
 } from "lucide-react";
 import { OrganizationAvatar } from "@/components/app/organization-avatar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useSystemVersion } from "@/hooks/dashboard/system";
 import { cn } from "@/lib/utils";
 
 type DashboardNavItem = {
@@ -53,6 +56,7 @@ export function DashboardSidebar({
   isLoggingOut = false,
 }: DashboardSidebarProps): React.JSX.Element {
   const pathname = usePathname();
+  const systemVersionQuery = useSystemVersion();
 
   function isNavItemActive(href: string): boolean {
     if (href === "/dashboard") {
@@ -97,6 +101,33 @@ export function DashboardSidebar({
           </Link>
         ))}
       </nav>
+
+      <div className="px-4 pb-3">
+        {systemVersionQuery.isPending ? (
+          <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-5 w-24 rounded-full" />
+          </div>
+        ) : systemVersionQuery.data ? (
+          <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
+            <span className="text-xs font-medium text-muted-foreground">v{systemVersionQuery.data.current_version}</span>
+            <Badge
+              className={
+                systemVersionQuery.data.update_available
+                  ? "rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                  : "rounded-md bg-green-500/15 text-green-700 dark:text-green-300"
+              }
+            >
+              {systemVersionQuery.data.update_available ? "Update Available" : "Up to Date"}
+            </Badge>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
+            <span className="text-xs font-medium text-muted-foreground">v—</span>
+            <Badge className="rounded-md bg-muted text-foreground">Up to Date</Badge>
+          </div>
+        )}
+      </div>
 
       <div className="border-t p-4">
         <div className="rounded-md border p-2">
