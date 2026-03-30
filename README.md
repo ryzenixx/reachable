@@ -5,7 +5,7 @@
 ### Know before your users do.
 
 Open-source status pages and uptime monitoring.  
-Free. Self-hostable. Production-ready.
+Free. Self-hostable.
 
 [Quick Start](#quick-start) • [Screenshots](#screenshots) • [Configuration](#configuration)
 
