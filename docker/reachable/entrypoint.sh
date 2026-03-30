@@ -72,14 +72,9 @@ BEGIN
   END IF;
 END
 \$\$;
-
-DO \$\$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${SAFE_POSTGRES_DB}') THEN
-    EXECUTE format('CREATE DATABASE %I OWNER %I', '${SAFE_POSTGRES_DB}', '${SAFE_POSTGRES_USER}');
-  END IF;
-END
-\$\$;
+SELECT format('CREATE DATABASE %I OWNER %I', '${SAFE_POSTGRES_DB}', '${SAFE_POSTGRES_USER}')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${SAFE_POSTGRES_DB}')
+\gexec
 SQL
 
   su-exec postgres pg_ctl -D "${PGDATA}" -m fast -w stop >/dev/null
