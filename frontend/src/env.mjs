@@ -4,10 +4,10 @@ const envSchema = z.object({
   NEXT_PUBLIC_API_URL: z
     .string()
     .url()
-    .default("http://localhost:8009/api/v1"),
+    .default("http://localhost/api/v1"),
   NEXT_PUBLIC_REVERB_APP_KEY: z.string().min(1).default("reachable-app-key"),
   NEXT_PUBLIC_REVERB_HOST: z.string().min(1).default("localhost"),
-  NEXT_PUBLIC_REVERB_PORT: z.coerce.number().int().positive().default(8080),
+  NEXT_PUBLIC_REVERB_PORT: z.coerce.number().int().positive().default(80),
   NEXT_PUBLIC_REVERB_SCHEME: z.enum(["http", "https"]).default("http"),
 });
 

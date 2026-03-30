@@ -19,23 +19,27 @@ function isLoopbackHost(hostname: string): boolean {
 }
 
 function resolveBrowserAwareApiBaseUrl(configuredUrl: string): string {
+  const normalized = configuredUrl.replace(/\/$/, "");
+
   if (typeof window === "undefined") {
-    return configuredUrl.replace(/\/$/, "");
+    return normalized;
   }
 
   try {
-    const url = new URL(configuredUrl);
+    const url = new URL(normalized);
     const browserHostname = window.location.hostname;
 
     if (isLoopbackHost(url.hostname) && !isLoopbackHost(browserHostname)) {
-      url.hostname = browserHostname;
-      return url.toString().replace(/\/$/, "");
+      const runtimeUrl = new URL(window.location.origin);
+      runtimeUrl.pathname = url.pathname;
+      runtimeUrl.search = url.search;
+      return runtimeUrl.toString().replace(/\/$/, "");
     }
-  } catch {
-    return configuredUrl.replace(/\/$/, "");
-  }
 
-  return configuredUrl.replace(/\/$/, "");
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return normalized;
+  }
 }
 
 export const apiClient = axios.create({

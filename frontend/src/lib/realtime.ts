@@ -18,52 +18,55 @@ function isLoopbackHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
-function resolveRuntimeHost(configuredHost: string): string {
-  if (typeof window === "undefined") {
-    return configuredHost;
-  }
-
-  const browserHostname = window.location.hostname;
-
-  if (isLoopbackHost(configuredHost) && !isLoopbackHost(browserHostname)) {
-    return browserHostname;
-  }
-
-  return configuredHost;
-}
-
 function resolveRuntimeApiRoot(): string {
   const configuredRoot = env.NEXT_PUBLIC_API_URL.replace(/\/api\/v1\/?$/, "");
+  const normalized = configuredRoot.replace(/\/$/, "");
 
   if (typeof window === "undefined") {
-    return configuredRoot.replace(/\/$/, "");
+    return normalized;
   }
 
   try {
-    const url = new URL(configuredRoot);
+    const url = new URL(normalized);
     const browserHostname = window.location.hostname;
 
     if (isLoopbackHost(url.hostname) && !isLoopbackHost(browserHostname)) {
-      url.hostname = browserHostname;
-      return url.toString().replace(/\/$/, "");
+      return window.location.origin.replace(/\/$/, "");
     }
-  } catch {
-    return configuredRoot.replace(/\/$/, "");
-  }
 
-  return configuredRoot.replace(/\/$/, "");
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return normalized;
+  }
 }
 
 export function createEcho(token?: string): Echo<"reverb"> {
   const apiRoot = resolveRuntimeApiRoot();
+  const runtimeTls = typeof window !== "undefined" ? window.location.protocol === "https:" : false;
+  const runtimeHost = typeof window !== "undefined" ? window.location.hostname : env.NEXT_PUBLIC_REVERB_HOST;
+  const runtimePort =
+    typeof window !== "undefined" && window.location.port.length > 0
+      ? Number(window.location.port)
+      : runtimeTls
+        ? 443
+        : 80;
+
+  const useRuntimeSocket =
+    typeof window !== "undefined"
+    && isLoopbackHost(env.NEXT_PUBLIC_REVERB_HOST)
+    && !isLoopbackHost(runtimeHost);
+
+  const wsHost = useRuntimeSocket ? runtimeHost : env.NEXT_PUBLIC_REVERB_HOST;
+  const wsPort = useRuntimeSocket ? runtimePort : env.NEXT_PUBLIC_REVERB_PORT;
+  const forceTls = useRuntimeSocket ? runtimeTls : env.NEXT_PUBLIC_REVERB_SCHEME === "https";
 
   return new Echo({
     broadcaster: "reverb",
     key: env.NEXT_PUBLIC_REVERB_APP_KEY,
-    wsHost: resolveRuntimeHost(env.NEXT_PUBLIC_REVERB_HOST),
-    wsPort: env.NEXT_PUBLIC_REVERB_PORT,
-    wssPort: env.NEXT_PUBLIC_REVERB_PORT,
-    forceTLS: env.NEXT_PUBLIC_REVERB_SCHEME === "https",
+    wsHost,
+    wsPort,
+    wssPort: wsPort,
+    forceTLS: forceTls,
     enabledTransports: ["ws", "wss"],
     authEndpoint: `${apiRoot}/broadcasting/auth`,
     auth: {

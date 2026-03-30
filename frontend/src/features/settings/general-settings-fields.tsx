@@ -59,12 +59,13 @@ export function GeneralSettingsFields({ form }: GeneralSettingsFieldsProps): Rea
         name="custom_domain"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Public URL for email links</FormLabel>
+            <FormLabel>Domain</FormLabel>
             <FormControl>
-              <Input placeholder="https://status.example.com" {...field} value={field.value ?? ""} />
+              <Input placeholder="status.example.com" {...field} value={field.value ?? ""} />
             </FormControl>
             <p className="text-xs text-muted-foreground">
-              Used for confirmation and unsubscribe links in emails. You can enter a full URL or just a domain.
+              Used for confirmation and unsubscribe links in emails. Add an A/AAAA DNS record for this domain
+              pointing to your server IP.
             </p>
             <FormMessage />
           </FormItem>

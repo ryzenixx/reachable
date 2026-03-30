@@ -64,8 +64,12 @@ RUN apk add --no-cache \
     nginx \
     nodejs \
     npm \
+    postgresql \
     postgresql-client \
+    redis \
+    su-exec \
     supervisor \
+    traefik \
     unzip \
     zip
 
@@ -96,12 +100,14 @@ WORKDIR /var/www/html
 COPY docker/reachable/nginx-api.conf /etc/nginx/http.d/default.conf
 COPY docker/reachable/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/reachable/entrypoint.sh /usr/local/bin/entrypoint
+COPY docker/reachable/bootstrap.sh /usr/local/bin/bootstrap
+COPY docker/reachable/traefik.yml /etc/traefik/traefik.yml
+COPY docker/reachable/traefik-dynamic.yml /etc/traefik/dynamic.yml
 
-RUN chmod +x /usr/local/bin/entrypoint
+RUN chmod +x /usr/local/bin/entrypoint /usr/local/bin/bootstrap
 
 EXPOSE 80
-EXPOSE 3000
-EXPOSE 8080
+EXPOSE 443
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

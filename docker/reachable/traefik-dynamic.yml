@@ -1,0 +1,15 @@
+http:
+  routers:
+    reachable:
+      rule: PathPrefix(`/`)
+      entryPoints:
+        - websecure
+      service: reachable
+      tls:
+        certResolver: le
+
+  services:
+    reachable:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:8081

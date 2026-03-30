@@ -32,21 +32,17 @@ Reachable gives you a polished public status page and an operations dashboard in
 ```bash
 git clone https://github.com/ryzenixx/reachable.git
 cd reachable
+cp .env.example .env
+# edit .env -> REACHABLE_DOMAIN, POSTGRES_PASSWORD
 docker compose up -d
 ```
 
 ### First Run
 
-1. Open `http://localhost:3000/setup`
-2. Create organization + owner account
-3. Continue to `http://localhost:3000/dashboard`
-
-### Default Local URLs
-
-- Status page: `http://localhost:3000`
-- Dashboard: `http://localhost:3000/dashboard`
-- API: `http://localhost:8009/api/v1`
-- WebSocket: `ws://localhost:8080`
+1. Point your domain DNS A/AAAA record to your server IP
+2. Open `https://your-domain/setup`
+3. Create organization + owner account
+4. Continue to `/dashboard`
 
 ## Configuration
 
@@ -54,13 +50,10 @@ Most setups only need these environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `REACHABLE_DOMAIN` | `reachable.example.com` | Public domain for Reachable |
 | `POSTGRES_PASSWORD` | `CHANGEME` | Database password |
-| `FRONTEND_PORT` | `3000` | Frontend port |
-| `API_PORT` | `8009` | API port |
-| `REVERB_PORT` | `8080` | WebSocket port |
-| `FRONTEND_URL` | `http://localhost:3000` | Public app URL |
-| `APP_URL` | `http://localhost:8009` | API base URL |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8009/api/v1` | Frontend API URL |
+
+Everything else is configured automatically inside the Reachable image (frontend, API, queue workers, websocket, Redis, PostgreSQL).
 
 Use a `.env` file or your deployment panel to override values.
 

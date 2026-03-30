@@ -4,7 +4,7 @@ import { PublicIncidentPageClient } from "@/components/status/public-incident-pa
 import type { PublicIncidentPayload } from "@/types/api";
 
 function apiBaseUrl(): string {
-  return (process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8009/api/v1").replace(/\/$/, "");
+  return (process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8081/api/v1").replace(/\/$/, "");
 }
 
 async function fetchPublicIncident(incidentId: string): Promise<PublicIncidentPayload | null> {

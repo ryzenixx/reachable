@@ -4,66 +4,18 @@ services:
     pull_policy: always
     container_name: reachable
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
-      APP_URL: ${APP_URL:-http://localhost:${API_PORT:-8009}}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
-      DB_DATABASE: ${POSTGRES_DB:-reachable}
-      DB_USERNAME: ${POSTGRES_USER:-reachable}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${API_PORT:-8009}/api/v1}
-      INTERNAL_API_URL: http://127.0.0.1/api/v1
-      NEXT_PUBLIC_REVERB_HOST: ${NEXT_PUBLIC_REVERB_HOST:-localhost}
-      NEXT_PUBLIC_REVERB_PORT: ${REVERB_PORT:-8080}
-      NEXT_PUBLIC_REVERB_SCHEME: ${NEXT_PUBLIC_REVERB_SCHEME:-http}
+      REACHABLE_DOMAIN: ${REACHABLE_DOMAIN:-reachable.localhost}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
     ports:
-      - "${API_PORT:-8009}:80"
-      - "${FRONTEND_PORT:-3000}:3000"
-      - "${REVERB_PORT:-8080}:8080"
+      - "80:80"
+      - "443:443"
     volumes:
       - reachable_data:/var/www/html/storage
-    networks:
-      - reachable
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: reachable-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-reachable}
-      POSTGRES_USER: ${POSTGRES_USER:-reachable}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reachable} -d ${POSTGRES_DB:-reachable}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    volumes:
       - reachable_postgres_data:/var/lib/postgresql/data
-    networks:
-      - reachable
-
-  redis:
-    image: redis:7-alpine
-    container_name: reachable-redis
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    networks:
-      - reachable
+      - reachable_redis_data:/data
 
 volumes:
-  reachable_postgres_data:
   reachable_data:
-
-networks:
-  reachable:
-    name: reachable
+  reachable_postgres_data:
+  reachable_redis_data:
