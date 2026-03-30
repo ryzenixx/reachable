@@ -4,121 +4,89 @@
 
 ### Know before your users do.
 
-Open-source status pages and uptime monitoring. Free and self-hostable.
+Open-source status pages and uptime monitoring.  
+Free. Self-hostable. Production-ready.
 
-<p>
-  <img alt="Laravel" src="https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white" />
-  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" />
-  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
-  <img alt="Redis" src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white" />
-  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" />
-</p>
-
-<p>
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#screenshots">Screenshots</a> ·
-  <a href="#configuration">Configuration</a> ·
-  <a href="#development">Development</a>
-</p>
+[Quick Start](#quick-start) • [Screenshots](#screenshots) • [Configuration](#configuration)
 
 </div>
 
 ---
 
-## What Reachable Gives You
+![Public Status Page](docs/screenshots/public-status-page.png)
 
-- Public status page at `/`
-- Operational dashboard at `/dashboard`
-- Realtime status updates (Reverb WebSockets)
-- Incidents, maintenances, subscribers, and notifications
-- SMTP-based email flow (confirmation + incident updates)
-- One-command Docker deployment
+## Built For Fast Incident Communication
 
-## Product Scope
+Reachable gives you a polished public status page and an operations dashboard in one stack, with realtime updates and clean workflows for incidents, maintenance, and subscribers.
 
-Reachable is designed as **single-organization per instance**.
+### Highlights
 
-That keeps onboarding simple, infrastructure predictable, and self-hosting friction low.
-
-## Architecture
-
-`docker-compose.yml` runs exactly 3 services:
-
-- `reachable` → all-in-one container (frontend + API + Horizon + Reverb + scheduler)
-- `postgres` → PostgreSQL 16
-- `redis` → Redis 7
+- Public status page on `/`
+- Dashboard on `/dashboard`
+- Realtime updates via WebSocket
+- Incident + maintenance workflows
+- SMTP notifications
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/ryzenixx/reachable.git reachable
+git clone https://github.com/ryzenixx/reachable.git
 cd reachable
+docker compose up -d
 ```
 
-Run Reachable:
+### First Run
+
+1. Open `http://localhost:3000/setup`
+2. Create organization + owner account
+3. Continue to `http://localhost:3000/dashboard`
+
+### Default Local URLs
+
+- Status page: `http://localhost:3000`
+- Dashboard: `http://localhost:3000/dashboard`
+- API: `http://localhost:8009/api/v1`
+- WebSocket: `ws://localhost:8080`
+
+## Configuration
+
+Most setups only need these environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `POSTGRES_PASSWORD` | `CHANGEME` | Database password |
+| `FRONTEND_PORT` | `3000` | Frontend port |
+| `API_PORT` | `8009` | API port |
+| `REVERB_PORT` | `8080` | WebSocket port |
+| `FRONTEND_URL` | `http://localhost:3000` | Public app URL |
+| `APP_URL` | `http://localhost:8009` | API base URL |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8009/api/v1` | Frontend API URL |
+
+Use a `.env` file or your deployment panel to override values.
+
+## Update
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-Optional overrides:
-
-```bash
-cp .env.example .env
-# edit only what you need
-```
-
-Local endpoints:
-
-- App: `http://localhost:3000`
-- Dashboard: `http://localhost:3000/dashboard`
-- API: `http://localhost:8009/api/v1`
-- WebSocket: `ws://localhost:8080`
-
-First-time setup:
-
-1. Open `http://localhost:3000/setup`
-2. Create organization + owner account
-3. Continue in `/dashboard`
-
 ## Screenshots
 
-| Public Status Page | Dashboard Overview |
+| Dashboard Overview | Dashboard Monitors |
 | --- | --- |
-| ![Public Status Page](docs/screenshots/public-status-page.png) | ![Dashboard Overview](docs/screenshots/dashboard-overview.png) |
+| ![Dashboard Overview](docs/screenshots/dashboard-overview.png) | ![Dashboard Monitors](docs/screenshots/dashboard-monitors.png) |
 
-| Dashboard Monitors | Dashboard Incidents |
+| Dashboard Incidents | Public Status Page |
 | --- | --- |
-| ![Dashboard Monitors](docs/screenshots/dashboard-monitors.png) | ![Dashboard Incidents](docs/screenshots/dashboard-incidents.png) |
-
-## Configuration
-
-Reachable starts with sane defaults. `.env` is optional.
-
-### Common Overrides
-
-- `API_PORT`, `FRONTEND_PORT`, `REVERB_PORT`
-- `REACHABLE_IMAGE`
-- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-
-### Reverse Proxy / Custom Domain
-
-For clean links in outgoing emails:
-
-- set `FRONTEND_URL` globally
-- or set **Public URL for email links** in Dashboard Settings (per organization override)
+| ![Dashboard Incidents](docs/screenshots/dashboard-incidents.png) | ![Public Status Page](docs/screenshots/public-status-page.png) |
 
 ## Development
-
-Use local source builds with the dev compose file:
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d --build
 ```
 
-## Security Baseline
+## License
 
-- Keep `APP_DEBUG=false` in production
-- Use strong credentials/secrets for DB, Redis, SMTP
-- Terminate TLS at your reverse proxy
+AGPL-3.0. See `LICENSE`.
