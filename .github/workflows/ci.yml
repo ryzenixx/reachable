@@ -5,10 +5,16 @@ on:
     branches:
       - main
       - develop
+    paths:
+      - api/**
+      - frontend/**
   push:
     branches:
       - main
       - develop
+    paths:
+      - api/**
+      - frontend/**
 
 permissions:
   contents: read
