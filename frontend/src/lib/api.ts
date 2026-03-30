@@ -146,8 +146,32 @@ function emitNetwork(eventName: string): void {
   window.dispatchEvent(new CustomEvent(eventName));
 }
 
+function isLoopbackHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function resolveBrowserAwareApiBaseUrl(configuredUrl: string): string {
+  if (typeof window === "undefined") {
+    return configuredUrl.replace(/\/$/, "");
+  }
+
+  try {
+    const url = new URL(configuredUrl);
+    const browserHostname = window.location.hostname;
+
+    if (isLoopbackHost(url.hostname) && !isLoopbackHost(browserHostname)) {
+      url.hostname = browserHostname;
+      return url.toString().replace(/\/$/, "");
+    }
+  } catch {
+    return configuredUrl.replace(/\/$/, "");
+  }
+
+  return configuredUrl.replace(/\/$/, "");
+}
+
 export const apiClient = axios.create({
-  baseURL: env.NEXT_PUBLIC_API_URL,
+  baseURL: resolveBrowserAwareApiBaseUrl(env.NEXT_PUBLIC_API_URL),
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
