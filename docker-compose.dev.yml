@@ -1,0 +1,166 @@
+x-laravel-env: &laravel-env
+  APP_NAME: Reachable
+  APP_ENV: ${APP_ENV:-production}
+  APP_DEBUG: ${APP_DEBUG:-false}
+  APP_KEY: ${APP_KEY}
+  APP_URL: ${APP_URL}
+  FRONTEND_URL: ${FRONTEND_URL}
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: info
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_DATABASE: ${DB_DATABASE}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  REDIS_URL: ${REDIS_URL}
+  REDIS_CLIENT: ${REDIS_CLIENT:-phpredis}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_DB: ${REDIS_DB:-0}
+  REDIS_CACHE_DB: ${REDIS_CACHE_DB:-1}
+  QUEUE_CONNECTION: redis
+  CACHE_STORE: redis
+  SESSION_DRIVER: redis
+  BROADCAST_CONNECTION: reverb
+  MAIL_MAILER: ${MAIL_MAILER:-smtp}
+  MAIL_SCHEME: ${MAIL_SCHEME:-smtp}
+  MAIL_HOST: ${MAIL_HOST:-127.0.0.1}
+  MAIL_PORT: ${MAIL_PORT:-2525}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME}
+  REVERB_SERVER_HOST: 0.0.0.0
+  REVERB_SERVER_PORT: 8080
+  REVERB_HOST: ${REVERB_INTERNAL_HOST:-reverb}
+  REVERB_PORT: ${REVERB_INTERNAL_PORT:-8080}
+  REVERB_SCHEME: ${REVERB_INTERNAL_SCHEME:-http}
+  REVERB_APP_ID: ${REVERB_APP_ID}
+  REVERB_APP_KEY: ${REVERB_APP_KEY}
+  REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+
+x-laravel-service: &laravel-service
+  build:
+    context: ./api
+    dockerfile: Dockerfile
+  env_file:
+    - ./.env
+  volumes:
+    - reachable_data:/var/www/html/storage
+  networks:
+    - reachable
+
+services:
+  app:
+    <<: *laravel-service
+    container_name: reachable-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *laravel-env
+      RUN_MIGRATIONS: "true"
+    ports:
+      - "8009:80"
+
+  horizon:
+    <<: *laravel-service
+    container_name: reachable-horizon
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *laravel-env
+      RUN_MIGRATIONS: "false"
+    command: ["php", "artisan", "horizon"]
+
+  reverb:
+    <<: *laravel-service
+    container_name: reachable-reverb
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *laravel-env
+      RUN_MIGRATIONS: "false"
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: reachable-frontend
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    env_file:
+      - ./.env
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://app/api/v1}
+      NEXT_PUBLIC_REVERB_APP_KEY: ${NEXT_PUBLIC_REVERB_APP_KEY}
+      NEXT_PUBLIC_REVERB_HOST: ${NEXT_PUBLIC_REVERB_HOST}
+      NEXT_PUBLIC_REVERB_PORT: ${NEXT_PUBLIC_REVERB_PORT}
+      NEXT_PUBLIC_REVERB_SCHEME: ${NEXT_PUBLIC_REVERB_SCHEME}
+    ports:
+      - "3000:3000"
+    networks:
+      - reachable
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: reachable-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - reachable_postgres_data:/var/lib/postgresql/data
+    networks:
+      - reachable
+    ports:
+      - "59387:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: reachable-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - reachable
+
+volumes:
+  reachable_postgres_data:
+  reachable_data:
+
+networks:
+  reachable:
+    name: reachable
