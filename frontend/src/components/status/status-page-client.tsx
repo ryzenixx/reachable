@@ -86,7 +86,15 @@ export function StatusPageClient(): React.JSX.Element {
         <footer className="mb-4 mt-10 border-t border-border/80 pt-4">
           <div className="text-[11px] leading-none text-muted-foreground">
             <span className="tracking-wide">
-              Powered by <span className="font-medium text-foreground/85">Reachable</span>
+              Powered by{" "}
+              <a
+                className="font-medium text-foreground/85 underline underline-offset-2"
+                href="https://github.com/ryzenixx/reachable"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Reachable
+              </a>
             </span>
           </div>
         </footer>
