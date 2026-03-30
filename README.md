@@ -88,9 +88,9 @@ First-time setup:
 | --- | --- |
 | ![Public Status Page](docs/screenshots/public-status-page.png) | ![Dashboard Overview](docs/screenshots/dashboard-overview.png) |
 
-| Dashboard Services | Dashboard Incidents |
+| Dashboard Monitors | Dashboard Incidents |
 | --- | --- |
-| ![Dashboard Services](docs/screenshots/dashboard-services.png) | ![Dashboard Incidents](docs/screenshots/dashboard-incidents.png) |
+| ![Dashboard Monitors](docs/screenshots/dashboard-monitors.png) | ![Dashboard Incidents](docs/screenshots/dashboard-incidents.png) |
 
 ## Configuration
 
