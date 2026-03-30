@@ -76,6 +76,12 @@ class PublicStatusController extends Controller
     {
         $organization = $this->resolveOrganization();
 
+        if (! (bool) $organization->smtp_enabled) {
+            return response()->json([
+                'message' => 'Email updates are not enabled for this status page.',
+            ], 409);
+        }
+
         $subscriber = $this->createSubscriberAction->execute(
             organization: $organization,
             email: $request->validated('email'),

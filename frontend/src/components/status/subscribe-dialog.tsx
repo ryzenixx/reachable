@@ -20,7 +20,11 @@ import { useSubscribe } from "@/hooks/use-public-status";
 import { toastApiError } from "@/lib/errors";
 import { subscriberSchema, type SubscriberValues } from "@/schemas";
 
-export function SubscribeDialog(): React.JSX.Element {
+type SubscribeDialogProps = {
+  isEnabled?: boolean;
+};
+
+export function SubscribeDialog({ isEnabled = true }: SubscribeDialogProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -32,6 +36,20 @@ export function SubscribeDialog(): React.JSX.Element {
       email: "",
     },
   });
+
+  if (!isEnabled) {
+    return (
+      <Button
+        onClick={() => {
+          toast.info("Email updates are not enabled for this status page.");
+        }}
+        size="sm"
+        variant="outline"
+      >
+        Subscribe to updates
+      </Button>
+    );
+  }
 
   return (
     <Dialog

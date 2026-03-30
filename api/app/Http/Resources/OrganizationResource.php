@@ -20,6 +20,7 @@ class OrganizationResource extends JsonResource
             'logo_url' => $this->logo_url,
             'banner_url' => $this->banner_url,
             'custom_domain' => $this->custom_domain,
+            'smtp_enabled' => (bool) $this->smtp_enabled,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
