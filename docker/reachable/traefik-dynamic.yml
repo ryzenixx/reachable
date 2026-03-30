@@ -1,6 +1,12 @@
 http:
   routers:
-    reachable:
+    reachable-http:
+      rule: PathPrefix(`/`)
+      entryPoints:
+        - web
+      service: reachable
+
+    reachable-https:
       rule: PathPrefix(`/`)
       entryPoints:
         - websecure
