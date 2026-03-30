@@ -19,10 +19,6 @@ use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function (): void {
-    config()->set('reachable.monitoring.allow_private_targets', true);
-});
-
 it('records a successful monitor check result', function (): void {
     Http::fake([
         '*' => Http::response(status: 200),
@@ -51,6 +47,34 @@ it('records a successful monitor check result', function (): void {
 
     $service->refresh();
     expect($service->status)->toBe(ServiceStatus::Operational);
+});
+
+it('normalizes http monitor targets without scheme before running checks', function (): void {
+    Http::fake([
+        'http://192.168.1.1*' => Http::response(status: 200),
+        '*' => Http::response(status: 200),
+    ]);
+
+    $organization = Organization::factory()->create();
+    $service = Service::factory()->for($organization)->create([
+        'status' => ServiceStatus::Operational,
+    ]);
+
+    $monitor = Monitor::factory()->for($service)->create([
+        'type' => MonitorType::Http,
+        'url' => '192.168.1.1/status',
+        'method' => MonitorMethod::GET,
+        'expected_status_code' => 200,
+        'is_active' => true,
+    ]);
+
+    RunMonitorCheck::dispatchSync($monitor->id);
+
+    $this->assertDatabaseHas('monitor_checks', [
+        'monitor_id' => $monitor->id,
+        'status' => MonitorCheckStatus::Up->value,
+        'status_code' => 200,
+    ]);
 });
 
 it('auto-creates an incident after two consecutive monitor failures', function (): void {
