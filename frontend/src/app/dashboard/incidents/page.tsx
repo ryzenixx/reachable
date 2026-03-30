@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus } from "lucide-react";
 import { useState } from "react";
@@ -10,44 +9,14 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageMeta } from "@/components/app/page-meta";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { useDashboardShell } from "@/components/dashboard/shell-context";
-import { ImpactBadge } from "@/components/status/impact-badge";
-import { IncidentStatusBadge } from "@/components/status/incident-status-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
+import { INCIDENT_DEFAULT_VALUES } from "@/features/incidents/constants";
+import { IncidentFormSheet } from "@/features/incidents/incident-form-sheet";
+import { IncidentsTable } from "@/features/incidents/incidents-table";
 import { useCreateIncident, useIncidents, useServices, useUpdateIncident } from "@/hooks/use-dashboard";
-import { formatRelative } from "@/lib/dates";
 import { toastApiError } from "@/lib/errors";
 import { incidentSchema, type IncidentValues } from "@/schemas";
-
-function defaultValues(): IncidentValues {
-  return {
-    title: "",
-    status: "investigating",
-    impact: "major",
-    message: "",
-    service_ids: [],
-  };
-}
 
 export default function IncidentsPage(): React.JSX.Element {
   const { openMobileSidebar } = useDashboardShell();
@@ -62,7 +31,7 @@ export default function IncidentsPage(): React.JSX.Element {
 
   const form = useForm<IncidentValues>({
     resolver: zodResolver(incidentSchema),
-    defaultValues: defaultValues(),
+    defaultValues: INCIDENT_DEFAULT_VALUES,
   });
 
   const services = servicesQuery.data ?? [];
@@ -73,7 +42,7 @@ export default function IncidentsPage(): React.JSX.Element {
       await createIncidentMutation.mutateAsync(values);
       toast.success("Incident created.");
       setIsSheetOpen(false);
-      form.reset(defaultValues());
+      form.reset(INCIDENT_DEFAULT_VALUES);
     } catch (error) {
       toastApiError(error, "Unable to create incident.");
     }
@@ -126,203 +95,22 @@ export default function IncidentsPage(): React.JSX.Element {
           title="No incidents yet"
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Impact</TableHead>
-              <TableHead>Affected services</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Resolved</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {incidents.map((incident) => (
-              <TableRow key={incident.id}>
-                <TableCell>
-                  <Link className="font-medium hover:underline" href={`/dashboard/incidents/${incident.id}`}>
-                    {incident.title}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <IncidentStatusBadge status={incident.status} />
-                </TableCell>
-                <TableCell>
-                  <ImpactBadge impact={incident.impact} />
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {incident.services.length === 0
-                      ? <span className="text-xs text-muted-foreground">None</span>
-                      : incident.services.map((service) => (
-                          <Badge key={service.id} className="bg-muted text-foreground">
-                            {service.name}
-                          </Badge>
-                        ))}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{formatRelative(incident.created_at)}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {incident.resolved_at ? formatRelative(incident.resolved_at) : "-"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-2">
-                    {incident.status !== "resolved" ? (
-                      <Button onClick={() => void resolveIncident(incident.id)} size="sm" variant="outline">
-                        Resolve
-                      </Button>
-                    ) : null}
-                    <Button asChild size="sm" variant="ghost">
-                      <Link href={`/dashboard/incidents/${incident.id}`}>View</Link>
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <IncidentsTable incidents={incidents} onResolve={resolveIncident} />
       )}
 
-      <Sheet
+      <IncidentFormSheet
+        form={form}
+        isOpen={isSheetOpen}
+        isSubmitting={createIncidentMutation.isPending}
         onOpenChange={(open) => {
           setIsSheetOpen(open);
           if (!open) {
-            form.reset(defaultValues());
+            form.reset(INCIDENT_DEFAULT_VALUES);
           }
         }}
-        open={isSheetOpen}
-      >
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>Create incident</SheetTitle>
-            <SheetDescription>Publish a new incident and link impacted services.</SheetDescription>
-          </SheetHeader>
-
-          <Form {...form}>
-            <form className="space-y-4" onSubmit={form.handleSubmit(submit)}>
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="API latency spike in eu-west" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="investigating">Investigating</SelectItem>
-                            <SelectItem value="identified">Identified</SelectItem>
-                            <SelectItem value="monitoring">Monitoring</SelectItem>
-                            <SelectItem value="resolved">Resolved</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="impact"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Impact</FormLabel>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Impact" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="minor">Minor</SelectItem>
-                            <SelectItem value="major">Major</SelectItem>
-                            <SelectItem value="critical">Critical</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="message"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Initial update (markdown supported)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="We are currently investigating elevated error rates..." {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="service_ids"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Affected services</FormLabel>
-                    <div className="space-y-2 rounded-md border p-3">
-                      {services.map((service) => {
-                        const checked = field.value.includes(service.id);
-
-                        return (
-                          <label key={service.id} className="flex items-center gap-2 text-sm">
-                            <input
-                              checked={checked}
-                              className="size-4 rounded border"
-                              onChange={(event) => {
-                                const next = event.target.checked
-                                  ? [...field.value, service.id]
-                                  : field.value.filter((id) => id !== service.id);
-
-                                field.onChange(next);
-                              }}
-                              type="checkbox"
-                            />
-                            <span>{service.name}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <SheetFooter>
-                <Button disabled={createIncidentMutation.isPending} type="submit">
-                  Create incident
-                </Button>
-              </SheetFooter>
-            </form>
-          </Form>
-        </SheetContent>
-      </Sheet>
+        onSubmit={submit}
+        services={services}
+      />
     </div>
   );
 }

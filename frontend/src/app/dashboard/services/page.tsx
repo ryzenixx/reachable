@@ -9,9 +9,8 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -19,38 +18,11 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageMeta } from "@/components/app/page-meta";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { useDashboardShell } from "@/components/dashboard/shell-context";
-import { StatusBadge } from "@/components/status/status-badge";
-import {
-  AlertDialog,
-  AlertDialogActionButton,
-  AlertDialogCancelButton,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ServiceFormSheet } from "@/features/services/service-form-sheet";
+import { SortableServiceRow } from "@/features/services/sortable-service-row";
 import {
   useCreateService,
   useDeleteService,
@@ -62,96 +34,6 @@ import {
 import { toastApiError } from "@/lib/errors";
 import { serviceSchema, type ServiceValues } from "@/schemas";
 import type { Service } from "@/types/api";
-
-type SortableServiceRowProps = {
-  service: Service;
-  monitorsCount: number;
-  onEdit: (service: Service) => void;
-  onDelete: (service: Service) => Promise<void>;
-};
-
-function ServiceActions({ service, onEdit, onDelete }: Omit<SortableServiceRowProps, "monitorsCount">): React.JSX.Element {
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <Button
-        onClick={() => onEdit(service)}
-        size="sm"
-        variant="ghost"
-      >
-        <Pencil className="size-4" />
-        Edit
-      </Button>
-
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button size="sm" variant="ghost">
-            <Trash2 className="size-4" />
-            Delete
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete service</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action permanently removes {service.name} and all linked monitors.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancelButton>Cancel</AlertDialogCancelButton>
-            <AlertDialogActionButton
-              onClick={async () => {
-                await onDelete(service);
-              }}
-            >
-              Delete service
-            </AlertDialogActionButton>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
-
-function SortableServiceRow({ service, monitorsCount, onEdit, onDelete }: SortableServiceRowProps): React.JSX.Element {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: service.id,
-  });
-
-  return (
-    <TableRow
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-    >
-      <TableCell className="w-9">
-        <button
-          className="text-muted-foreground"
-          type="button"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-          <span className="sr-only">Drag to reorder</span>
-        </button>
-      </TableCell>
-      <TableCell>
-        <p className="text-sm font-medium">{service.name}</p>
-      </TableCell>
-      <TableCell>
-        <StatusBadge status={service.status} />
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">{monitorsCount}</TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {service.uptime_percentage === null ? "No data" : `${service.uptime_percentage.toFixed(2)}%`}
-      </TableCell>
-      <TableCell>
-        <ServiceActions onDelete={onDelete} onEdit={onEdit} service={service} />
-      </TableCell>
-    </TableRow>
-  );
-}
 
 function makeDefaultServiceValues(): ServiceValues {
   return {
@@ -183,11 +65,9 @@ export default function ServicesPage(): React.JSX.Element {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const sortedServices = useMemo(() => {
+  const orderedServices = useMemo(() => {
     return [...(servicesQuery.data ?? [])].sort((a, b) => a.order - b.order);
   }, [servicesQuery.data]);
-
-  const orderedServices = sortedServices;
 
   const monitorCountByServiceId = useMemo(() => {
     const map = new Map<string, number>();
@@ -340,101 +220,14 @@ export default function ServicesPage(): React.JSX.Element {
         />
       )}
 
-      <Sheet onOpenChange={setIsSheetOpen} open={isSheetOpen}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editingService ? "Edit service" : "Add service"}</SheetTitle>
-            <SheetDescription>
-              Configure how this service appears on your status page and dashboard.
-            </SheetDescription>
-          </SheetHeader>
-
-          <Form {...form}>
-            <form className="space-y-4" onSubmit={form.handleSubmit(submit)}>
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="API Gateway" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Handles incoming API traffic" {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="operational">Operational</SelectItem>
-                          <SelectItem value="degraded">Degraded</SelectItem>
-                          <SelectItem value="partial_outage">Partial Outage</SelectItem>
-                          <SelectItem value="major_outage">Major Outage</SelectItem>
-                          <SelectItem value="maintenance">Maintenance</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="is_public"
-                render={({ field }) => (
-                  <FormItem>
-                    <label className="inline-flex items-center gap-2 text-sm font-medium">
-                      <input
-                        checked={field.value}
-                        className="size-4 rounded border"
-                        onChange={(event) => field.onChange(event.target.checked)}
-                        type="checkbox"
-                      />
-                      Visible on public page
-                    </label>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <SheetFooter>
-                <Button
-                  disabled={createServiceMutation.isPending || updateServiceMutation.isPending}
-                  type="submit"
-                >
-                  {editingService ? "Save changes" : "Create service"}
-                </Button>
-              </SheetFooter>
-            </form>
-          </Form>
-        </SheetContent>
-      </Sheet>
+      <ServiceFormSheet
+        editingService={editingService}
+        form={form}
+        isOpen={isSheetOpen}
+        isSubmitting={createServiceMutation.isPending || updateServiceMutation.isPending}
+        onOpenChange={setIsSheetOpen}
+        onSubmit={submit}
+      />
     </div>
   );
 }

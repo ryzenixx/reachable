@@ -45,17 +45,17 @@ export const monitorSchema = z
     type: z.enum(["http", "tcp", "ping"]),
     url: monitorUrlSchema,
     method: z.enum(["GET", "POST", "HEAD"]),
-    interval_seconds: z.coerce
+    interval_seconds: z
       .number()
       .int("Interval must be a whole number.")
       .min(15, "Interval must be at least 15 seconds.")
       .max(3600, "Interval must be 3600 seconds or less."),
-    timeout_ms: z.coerce
+    timeout_ms: z
       .number()
       .int("Timeout must be a whole number.")
       .min(100, "Timeout must be at least 100ms.")
       .max(60000, "Timeout must be 60000ms or less."),
-    expected_status_code: z.coerce
+    expected_status_code: z
       .number()
       .int("Expected status code must be a whole number.")
       .min(100, "Expected status code must be between 100 and 599.")
