@@ -8,7 +8,7 @@ return [
     'update_check' => [
         'enabled' => (bool) env('UPDATE_CHECK_ENABLED', true),
         'repository' => env('UPDATE_CHECK_REPOSITORY', 'ryzenixx/reachable'),
-        'cache_ttl_seconds' => (int) env('UPDATE_CHECK_CACHE_TTL_SECONDS', 21600),
+        'cache_ttl_seconds' => (int) env('UPDATE_CHECK_CACHE_TTL_SECONDS', 60),
         'timeout_seconds' => (int) env('UPDATE_CHECK_TIMEOUT_SECONDS', 5),
     ],
 ];

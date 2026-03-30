@@ -11,6 +11,8 @@ export function useSystemVersion() {
     queryFn: async (): Promise<SystemVersionSummary> => {
       return api.systemVersion();
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchIntervalInBackground: true,
   });
 }
