@@ -152,6 +152,16 @@ latest_version() {
   echo "${tag#v}"
 }
 
+max_version() {
+  local left="$1"
+  local right="$2"
+  if [[ "$(printf '%s\n%s\n' "${left}" "${right}" | sort -V | tail -n1)" == "${left}" ]]; then
+    echo "${left}"
+  else
+    echo "${right}"
+  fi
+}
+
 compute_bumps() {
   local version="$1"
   local major minor patch
@@ -249,14 +259,25 @@ prepare_release() {
   ensure_clean_worktree
   fetch_tags
 
-  local current next_tag
-  current="$(latest_version)"
-  validate_version "${current}"
+  local latest_tag_version current_root_version current_api_version current_base next_tag
+  latest_tag_version="$(latest_version)"
+  current_root_version="$(version_from_file "${VERSION_FILE}")"
+  current_api_version="$(version_from_file "${API_VERSION_FILE}")"
 
-  prompt_next_version "${current}"
+  validate_version "${latest_tag_version}"
+  validate_version "${current_root_version}"
+  validate_version "${current_api_version}"
 
-  if ! is_version_greater "${current}" "${NEXT_VERSION}"; then
-    die "Next version (${NEXT_VERSION}) must be greater than current (${current})."
+  if [[ "${current_root_version}" != "${current_api_version}" ]]; then
+    die "${VERSION_FILE} (${current_root_version}) and ${API_VERSION_FILE} (${current_api_version}) must match before preparing a release."
+  fi
+
+  current_base="$(max_version "${latest_tag_version}" "${current_root_version}")"
+
+  prompt_next_version "${current_base}"
+
+  if ! is_version_greater "${current_base}" "${NEXT_VERSION}"; then
+    die "Next version (${NEXT_VERSION}) must be greater than current base (${current_base})."
   fi
 
   next_tag="v${NEXT_VERSION}"
@@ -274,6 +295,9 @@ prepare_release() {
   printf '%s\n' "${NEXT_VERSION}" > "${API_VERSION_FILE}"
 
   git add "${VERSION_FILE}" "${API_VERSION_FILE}"
+  if git diff --cached --quiet; then
+    die "Selected version is already present in ${VERSION_FILE} and ${API_VERSION_FILE}. Choose a higher version."
+  fi
   git commit -m "chore(release): ${next_tag}"
 
   log ""
