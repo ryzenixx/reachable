@@ -73,6 +73,7 @@ WORKDIR /var/www/html
 
 COPY --from=api-deps /var/www/html/vendor ./vendor
 COPY api ./
+COPY VERSION ./VERSION
 
 RUN rm -f bootstrap/cache/*.php \
     && php artisan package:discover --ansi \
