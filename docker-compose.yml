@@ -4,9 +4,6 @@ services:
     pull_policy: always
     container_name: reachable
     restart: unless-stopped
-    environment:
-      REACHABLE_DOMAIN: ${REACHABLE_DOMAIN:-reachable.localhost}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
     ports:
       - "3000:80"
     volumes:

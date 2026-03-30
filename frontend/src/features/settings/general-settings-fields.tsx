@@ -63,10 +63,7 @@ export function GeneralSettingsFields({ form }: GeneralSettingsFieldsProps): Rea
             <FormControl>
               <Input placeholder="status.example.com" {...field} value={field.value ?? ""} />
             </FormControl>
-            <p className="text-xs text-muted-foreground">
-              Used for confirmation and unsubscribe links in emails. Add an A/AAAA DNS record for this domain
-              pointing to your server IP.
-            </p>
+            <p className="text-xs text-muted-foreground">Used in email links. Important: set your public domain.</p>
             <FormMessage />
           </FormItem>
         )}

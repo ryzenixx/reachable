@@ -32,8 +32,6 @@ Reachable gives you a polished public status page and an operations dashboard in
 ```bash
 git clone https://github.com/ryzenixx/reachable.git
 cd reachable
-cp .env.example .env
-# edit .env -> REACHABLE_DOMAIN, POSTGRES_PASSWORD
 docker compose up -d
 ```
 
@@ -42,20 +40,16 @@ docker compose up -d
 1. Reachable is available directly on `http://SERVER_IP:3000`
 2. If you use an external reverse proxy, target `HTTP -> SERVER_IP:3000`
 3. Open `/setup`, create organization + owner account
-4. Continue to `/dashboard`
+4. In `Dashboard -> Settings -> General`, set your public domain
+5. Continue to `/dashboard`
 
 ## Configuration
 
-Most setups only need these environment variables:
+No environment variables are required for standard deployment.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `REACHABLE_DOMAIN` | `reachable.example.com` | Public domain used in generated links (emails, confirmations) |
-| `POSTGRES_PASSWORD` | `CHANGEME` | Database password |
+Reachable auto-generates internal secrets (including PostgreSQL password) on first boot and stores them in the persistent storage volume.
 
-Everything else is configured automatically inside the Reachable image (frontend, API, queue workers, websocket, Redis, PostgreSQL).
-
-Use a `.env` file or your deployment panel to override values.
+Optional advanced overrides can still be provided through `.env` or your deployment panel (for example `POSTGRES_PASSWORD`, `FRONTEND_URL`).
 
 ## Update
 

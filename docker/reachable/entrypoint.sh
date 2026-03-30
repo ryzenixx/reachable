@@ -4,12 +4,28 @@ set -e
 cd /var/www/html
 
 APP_KEY_FILE="${APP_KEY_FILE:-/var/www/html/storage/app/runtime/app.key}"
+POSTGRES_PASSWORD_FILE="${POSTGRES_PASSWORD_FILE:-/var/www/html/storage/app/runtime/postgres.password}"
 POSTGRES_DB="${POSTGRES_DB:-reachable}"
 POSTGRES_USER="${POSTGRES_USER:-reachable}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-CHANGEME}"
 PGDATA="${PGDATA:-/var/lib/postgresql/data}"
 REDIS_DATA_DIR="${REDIS_DATA_DIR:-/data}"
-REACHABLE_DOMAIN="${REACHABLE_DOMAIN:-reachable.localhost}"
+
+if [ -n "${POSTGRES_PASSWORD:-}" ]; then
+  mkdir -p "$(dirname "${POSTGRES_PASSWORD_FILE}")"
+  printf '%s' "${POSTGRES_PASSWORD}" > "${POSTGRES_PASSWORD_FILE}"
+  chmod 600 "${POSTGRES_PASSWORD_FILE}" || true
+elif [ -f "${POSTGRES_PASSWORD_FILE}" ]; then
+  POSTGRES_PASSWORD="$(cat "${POSTGRES_PASSWORD_FILE}")"
+  echo "Using persisted PostgreSQL password from ${POSTGRES_PASSWORD_FILE}."
+else
+  POSTGRES_PASSWORD="$(php -r 'echo bin2hex(random_bytes(24));')"
+  mkdir -p "$(dirname "${POSTGRES_PASSWORD_FILE}")"
+  printf '%s' "${POSTGRES_PASSWORD}" > "${POSTGRES_PASSWORD_FILE}"
+  chmod 600 "${POSTGRES_PASSWORD_FILE}" || true
+  echo "Generated PostgreSQL password automatically."
+fi
+
+export POSTGRES_PASSWORD
 
 export DB_CONNECTION="${DB_CONNECTION:-pgsql}"
 export DB_HOST="${DB_HOST:-127.0.0.1}"
@@ -23,13 +39,13 @@ export REDIS_CLIENT="${REDIS_CLIENT:-phpredis}"
 export QUEUE_CONNECTION="${QUEUE_CONNECTION:-redis}"
 export CACHE_STORE="${CACHE_STORE:-redis}"
 export SESSION_DRIVER="${SESSION_DRIVER:-redis}"
-export APP_URL="${APP_URL:-https://${REACHABLE_DOMAIN}}"
-export FRONTEND_URL="${FRONTEND_URL:-https://${REACHABLE_DOMAIN}}"
+export APP_URL="${APP_URL:-http://localhost}"
+export FRONTEND_URL="${FRONTEND_URL:-http://localhost:3000}"
 export INTERNAL_API_URL="${INTERNAL_API_URL:-http://127.0.0.1/api/v1}"
 export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1/api/v1}"
-export NEXT_PUBLIC_REVERB_HOST="${NEXT_PUBLIC_REVERB_HOST:-${REACHABLE_DOMAIN}}"
-export NEXT_PUBLIC_REVERB_PORT="${NEXT_PUBLIC_REVERB_PORT:-443}"
-export NEXT_PUBLIC_REVERB_SCHEME="${NEXT_PUBLIC_REVERB_SCHEME:-https}"
+export NEXT_PUBLIC_REVERB_HOST="${NEXT_PUBLIC_REVERB_HOST:-localhost}"
+export NEXT_PUBLIC_REVERB_PORT="${NEXT_PUBLIC_REVERB_PORT:-80}"
+export NEXT_PUBLIC_REVERB_SCHEME="${NEXT_PUBLIC_REVERB_SCHEME:-http}"
 
 if [ -z "${APP_KEY:-}" ]; then
   if [ -f "${APP_KEY_FILE}" ]; then
