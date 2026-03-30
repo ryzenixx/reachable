@@ -6,21 +6,10 @@ PROD_BRANCH="${PROD_BRANCH:-main}"
 
 VERSION_FILE="VERSION"
 API_VERSION_FILE="api/VERSION"
-
-# Keep versioning intentionally simple for release flow: X.Y.Z
 VERSION_REGEX='^[0-9]+\.[0-9]+\.[0-9]+$'
-
-ASSUME_YES=false
-USE_GH=true
-SKIP_FETCH=false
-REQUESTED_VERSION=""
 
 log() {
   printf '%s\n' "$*" >&2
-}
-
-info() {
-  log "$*"
 }
 
 die() {
@@ -28,123 +17,44 @@ die() {
   exit 1
 }
 
-usage() {
-  cat <<EOF
-Usage:
-  git release [auto|prepare|publish|help] [options]
-
-Modes:
-  auto (default)
-    - On ${DEV_BRANCH}: prepare next release (bump + commit)
-    - On ${PROD_BRANCH}: publish release (tag + push + optional GitHub release)
-  prepare
-    - Run prepare flow explicitly on ${DEV_BRANCH}
-  publish
-    - Run publish flow explicitly on ${PROD_BRANCH}
-
-Options:
-  --version X.Y.Z  Set version directly for prepare mode (skip bump prompt)
-  --yes, -y        Skip confirmation prompts
-  --no-gh          Do not create GitHub release via gh CLI
-  --no-fetch       Skip git fetch checks (not recommended)
-  --help, -h       Show this help
-EOF
-}
-
 ensure_repo_root() {
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     die "Not inside a git repository."
   fi
 
-  local root
-  root="$(git rev-parse --show-toplevel)"
-  cd "${root}"
+  cd "$(git rev-parse --show-toplevel)"
 }
 
-ensure_files_exist() {
+ensure_required_files() {
   [[ -f "${VERSION_FILE}" ]] || die "Missing ${VERSION_FILE}"
   [[ -f "${API_VERSION_FILE}" ]] || die "Missing ${API_VERSION_FILE}"
 }
 
-current_branch() {
-  git rev-parse --abbrev-ref HEAD
-}
-
-ensure_branch() {
+ensure_on_branch() {
   local expected="$1"
   local current
-  current="$(current_branch)"
-
-  if [[ "${current}" != "${expected}" ]]; then
-    die "Must run on branch '${expected}' (current: '${current}')."
-  fi
+  current="$(git rev-parse --abbrev-ref HEAD)"
+  [[ "${current}" == "${expected}" ]] || die "Run this command on '${expected}' (current: '${current}')."
 }
 
 ensure_clean_worktree() {
   local dirty
   dirty="$(git status --porcelain --untracked-files=normal)"
-  if [[ -n "${dirty}" ]]; then
-    die "Working tree is not clean. Commit/stash changes first."
-  fi
+  [[ -z "${dirty}" ]] || die "Working tree is not clean. Commit/stash changes first."
 }
 
 validate_version() {
   local version="$1"
-  if ! [[ "${version}" =~ ${VERSION_REGEX} ]]; then
-    die "Invalid version '${version}'. Expected format X.Y.Z"
-  fi
+  [[ "${version}" =~ ${VERSION_REGEX} ]] || die "Invalid version '${version}'. Expected X.Y.Z"
 }
 
 version_from_file() {
-  local file="$1"
-  tr -d '[:space:]' < "${file}"
+  tr -d '[:space:]' < "$1"
 }
 
-tag_exists_locally() {
-  local tag="$1"
-  git show-ref --verify --quiet "refs/tags/${tag}"
-}
-
-tag_exists_remote() {
-  local tag="$1"
-  git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1
-}
-
-fetch_tags() {
-  if [[ "${SKIP_FETCH}" == true ]]; then
-    info "Skipping fetch (--no-fetch)."
-    return
-  fi
-
-  info "Fetching tags from origin..."
-  if ! git fetch origin --tags --prune; then
-    die "Failed to fetch tags from origin. Check network/auth (SSH key, agent, permissions)."
-  fi
-}
-
-fetch_branch() {
-  local branch="$1"
-
-  if [[ "${SKIP_FETCH}" == true ]]; then
-    return
-  fi
-
-  info "Fetching origin/${branch}..."
-  git fetch origin "${branch}" --prune
-}
-
-latest_tag() {
-  git for-each-ref \
-    --sort=-version:refname \
-    --format='%(refname:short)' \
-    refs/tags \
-    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
-    | head -n1 || true
-}
-
-latest_version() {
+latest_tag_version() {
   local tag
-  tag="$(latest_tag)"
+  tag="$(git for-each-ref --sort=-version:refname --format='%(refname:short)' refs/tags | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)"
   if [[ -z "${tag}" ]]; then
     echo "0.0.0"
     return
@@ -162,198 +72,88 @@ max_version() {
   fi
 }
 
-compute_bumps() {
-  local version="$1"
-  local major minor patch
-
-  IFS='.' read -r major minor patch <<< "${version}"
-
-  BUMP_PATCH="${major}.${minor}.$((patch + 1))"
-  BUMP_MINOR="${major}.$((minor + 1)).0"
-  BUMP_MAJOR="$((major + 1)).0.0"
-}
-
 is_version_greater() {
   local current="$1"
   local candidate="$2"
-
   [[ "$(printf '%s\n%s\n' "${current}" "${candidate}" | sort -V | tail -n1)" == "${candidate}" && "${current}" != "${candidate}" ]]
 }
 
-confirm() {
-  local prompt="$1"
-
-  if [[ "${ASSUME_YES}" == true ]]; then
+tag_exists() {
+  local tag="$1"
+  if git show-ref --verify --quiet "refs/tags/${tag}"; then
     return 0
   fi
+  git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1
+}
 
-  printf '%s [y/N]: ' "${prompt}" >&2
-  local answer
-  read -r answer
-  [[ "${answer}" =~ ^([yY][eE][sS]|[yY])$ ]]
+switch_branch() {
+  local branch="$1"
+  if git switch "${branch}" >/dev/null 2>&1; then
+    return
+  fi
+  git checkout "${branch}" >/dev/null
 }
 
 prompt_next_version() {
-  local current="$1"
+  local base="$1"
+  local major minor patch
+  IFS='.' read -r major minor patch <<< "${base}"
 
-  if [[ -n "${REQUESTED_VERSION}" ]]; then
-    NEXT_VERSION="${REQUESTED_VERSION}"
-    validate_version "${NEXT_VERSION}"
-    return
-  fi
-
-  compute_bumps "${current}"
-
-  if [[ ! -t 0 ]]; then
-    die "Non-interactive shell detected. Use --version X.Y.Z or run interactively."
-  fi
+  local patch_bump minor_bump major_bump
+  patch_bump="${major}.${minor}.$((patch + 1))"
+  minor_bump="${major}.$((minor + 1)).0"
+  major_bump="$((major + 1)).0.0"
 
   log ""
-  log "Latest release: v${current}"
+  log "Current base version: v${base}"
   log "Choose next version:"
-  log "  1) patch -> v${BUMP_PATCH}"
-  log "  2) minor -> v${BUMP_MINOR}"
-  log "  3) major -> v${BUMP_MAJOR}"
+  log "  1) patch -> v${patch_bump}"
+  log "  2) minor -> v${minor_bump}"
+  log "  3) major -> v${major_bump}"
   log "  4) custom"
   printf 'Choice [1-4]: ' >&2
 
-  local choice
+  local choice selected
   read -r choice
 
   case "${choice}" in
-    ""|1)
-      NEXT_VERSION="${BUMP_PATCH}"
-      ;;
-    2)
-      NEXT_VERSION="${BUMP_MINOR}"
-      ;;
-    3)
-      NEXT_VERSION="${BUMP_MAJOR}"
-      ;;
+    ""|1) selected="${patch_bump}" ;;
+    2) selected="${minor_bump}" ;;
+    3) selected="${major_bump}" ;;
     4)
       printf 'Enter custom version (X.Y.Z): ' >&2
-      read -r NEXT_VERSION
+      read -r selected
       ;;
     *)
       die "Invalid choice '${choice}'."
       ;;
   esac
 
-  validate_version "${NEXT_VERSION}"
+  validate_version "${selected}"
+  is_version_greater "${base}" "${selected}" || die "Selected version must be greater than ${base}."
+  echo "${selected}"
 }
 
-ensure_main_synced() {
-  fetch_branch "${PROD_BRANCH}"
+create_github_release_if_possible() {
+  local tag="$1"
+  local origin_url
+  origin_url="$(git remote get-url origin 2>/dev/null || true)"
 
-  local ahead behind
-  read -r behind ahead <<< "$(git rev-list --left-right --count "HEAD...origin/${PROD_BRANCH}")"
-
-  if [[ "${behind}" -ne 0 || "${ahead}" -ne 0 ]]; then
-    die "Local ${PROD_BRANCH} is not synced with origin/${PROD_BRANCH} (behind: ${behind}, ahead: ${ahead})."
-  fi
-}
-
-prepare_release() {
-  ensure_files_exist
-  ensure_branch "${DEV_BRANCH}"
-  ensure_clean_worktree
-  fetch_tags
-
-  local latest_tag_version current_root_version current_api_version current_base next_tag
-  latest_tag_version="$(latest_version)"
-  current_root_version="$(version_from_file "${VERSION_FILE}")"
-  current_api_version="$(version_from_file "${API_VERSION_FILE}")"
-
-  validate_version "${latest_tag_version}"
-  validate_version "${current_root_version}"
-  validate_version "${current_api_version}"
-
-  if [[ "${current_root_version}" != "${current_api_version}" ]]; then
-    die "${VERSION_FILE} (${current_root_version}) and ${API_VERSION_FILE} (${current_api_version}) must match before preparing a release."
-  fi
-
-  current_base="$(max_version "${latest_tag_version}" "${current_root_version}")"
-
-  prompt_next_version "${current_base}"
-
-  if ! is_version_greater "${current_base}" "${NEXT_VERSION}"; then
-    die "Next version (${NEXT_VERSION}) must be greater than current base (${current_base})."
-  fi
-
-  next_tag="v${NEXT_VERSION}"
-
-  if tag_exists_locally "${next_tag}" || tag_exists_remote "${next_tag}"; then
-    die "Tag ${next_tag} already exists."
-  fi
-
-  info "Preparing release ${next_tag} on ${DEV_BRANCH}."
-  if ! confirm "Continue"; then
-    die "Cancelled."
-  fi
-
-  printf '%s\n' "${NEXT_VERSION}" > "${VERSION_FILE}"
-  printf '%s\n' "${NEXT_VERSION}" > "${API_VERSION_FILE}"
-
-  git add "${VERSION_FILE}" "${API_VERSION_FILE}"
-  if git diff --cached --quiet; then
-    die "Selected version is already present in ${VERSION_FILE} and ${API_VERSION_FILE}. Choose a higher version."
-  fi
-  git commit -m "chore(release): ${next_tag}"
-
-  log ""
-  log "Release prepared successfully: ${next_tag}"
-  log "Next steps:"
-  log "  1) git push origin ${DEV_BRANCH}"
-  log "  2) merge ${DEV_BRANCH} into ${PROD_BRANCH}"
-  log "  3) checkout ${PROD_BRANCH} && git release publish"
-}
-
-publish_release() {
-  ensure_files_exist
-  ensure_branch "${PROD_BRANCH}"
-  ensure_clean_worktree
-  fetch_tags
-  ensure_main_synced
-
-  local root_version api_version tag
-  root_version="$(version_from_file "${VERSION_FILE}")"
-  api_version="$(version_from_file "${API_VERSION_FILE}")"
-
-  validate_version "${root_version}"
-  validate_version "${api_version}"
-
-  if [[ "${root_version}" != "${api_version}" ]]; then
-    die "${VERSION_FILE} (${root_version}) and ${API_VERSION_FILE} (${api_version}) must match."
-  fi
-
-  tag="v${root_version}"
-
-  if tag_exists_locally "${tag}" || tag_exists_remote "${tag}"; then
-    die "Tag ${tag} already exists."
-  fi
-
-  info "Publishing release ${tag} from ${PROD_BRANCH}."
-  if ! confirm "Create and push tag ${tag}"; then
-    die "Cancelled."
-  fi
-
-  git tag -a "${tag}" -m "Release ${tag}"
-  git push origin "${tag}"
-
-  if [[ "${USE_GH}" == false ]]; then
+  if [[ "${origin_url}" != *github.com* ]]; then
     log "Tag pushed: ${tag}"
+    log "Origin is not a GitHub remote, skipping gh release creation."
     return
   fi
 
   if ! command -v gh >/dev/null 2>&1; then
     log "Tag pushed: ${tag}"
-    log "GitHub CLI not installed. Create the GitHub release manually."
+    log "GitHub CLI not found, create the release manually if needed."
     return
   fi
 
   if ! gh auth status >/dev/null 2>&1; then
     log "Tag pushed: ${tag}"
-    log "GitHub CLI is not authenticated. Run 'gh auth login' to enable auto release creation."
+    log "GitHub CLI not authenticated, run 'gh auth login' to auto-create releases."
     return
   fi
 
@@ -362,81 +162,96 @@ publish_release() {
     return
   fi
 
-  gh release create "${tag}" --verify-tag --generate-notes
-  log "GitHub release created: ${tag}"
-}
-
-parse_args() {
-  MODE="auto"
-
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      auto|prepare|publish|help)
-        MODE="$1"
-        shift
-        ;;
-      --yes|-y)
-        ASSUME_YES=true
-        shift
-        ;;
-      --no-gh)
-        USE_GH=false
-        shift
-        ;;
-      --no-fetch)
-        SKIP_FETCH=true
-        shift
-        ;;
-      --version)
-        shift
-        [[ $# -gt 0 ]] || die "--version requires a value (X.Y.Z)."
-        REQUESTED_VERSION="$1"
-        shift
-        ;;
-      --help|-h)
-        MODE="help"
-        shift
-        ;;
-      *)
-        die "Unknown argument: $1"
-        ;;
-    esac
-  done
-}
-
-run_mode() {
-  case "${MODE}" in
-    help)
-      usage
-      ;;
-    prepare)
-      prepare_release
-      ;;
-    publish)
-      publish_release
-      ;;
-    auto)
-      local branch
-      branch="$(current_branch)"
-
-      if [[ "${branch}" == "${DEV_BRANCH}" ]]; then
-        prepare_release
-      elif [[ "${branch}" == "${PROD_BRANCH}" ]]; then
-        publish_release
-      else
-        die "Auto mode works only on ${DEV_BRANCH} or ${PROD_BRANCH} (current: ${branch})."
-      fi
-      ;;
-    *)
-      die "Unknown mode: ${MODE}"
-      ;;
-  esac
+  if gh release create "${tag}" --verify-tag --generate-notes; then
+    log "GitHub release created: ${tag}"
+  else
+    log "Tag pushed: ${tag}"
+    log "GitHub release creation failed via gh CLI, create it manually if needed."
+  fi
 }
 
 main() {
+  if [[ $# -ne 0 ]]; then
+    die "This command has no modes/options. Use only: git release"
+  fi
+
   ensure_repo_root
-  parse_args "$@"
-  run_mode
+  ensure_required_files
+  ensure_on_branch "${DEV_BRANCH}"
+  ensure_clean_worktree
+
+  log "Fetching branches and tags from origin..."
+  git fetch origin --tags --prune
+  git fetch origin "${DEV_BRANCH}" "${PROD_BRANCH}" --prune
+
+  local root_version api_version tag_version next_version next_tag
+  local prepared_version_already_in_files=false
+  root_version="$(version_from_file "${VERSION_FILE}")"
+  api_version="$(version_from_file "${API_VERSION_FILE}")"
+  tag_version="$(latest_tag_version)"
+
+  validate_version "${root_version}"
+  validate_version "${api_version}"
+  validate_version "${tag_version}"
+  [[ "${root_version}" == "${api_version}" ]] || die "${VERSION_FILE} and ${API_VERSION_FILE} must match."
+
+  next_version="$(prompt_next_version "${tag_version}")"
+  next_tag="v${next_version}"
+
+  if is_version_greater "${tag_version}" "${root_version}"; then
+    if [[ "${next_version}" != "${root_version}" ]] && ! is_version_greater "${root_version}" "${next_version}"; then
+      die "VERSION files are already at ${root_version}. Select ${root_version} or a higher version."
+    fi
+  fi
+
+  tag_exists "${next_tag}" && die "Tag ${next_tag} already exists."
+
+  if [[ "${next_version}" == "${root_version}" ]] && is_version_greater "${tag_version}" "${root_version}"; then
+    prepared_version_already_in_files=true
+  fi
+
+  printf '%s\n' "${next_version}" > "${VERSION_FILE}"
+  printf '%s\n' "${next_version}" > "${API_VERSION_FILE}"
+
+  git add "${VERSION_FILE}" "${API_VERSION_FILE}"
+  if git diff --cached --quiet; then
+    if [[ "${prepared_version_already_in_files}" == true ]]; then
+      log "Version ${next_version} is already prepared on ${DEV_BRANCH}, skipping version commit."
+    else
+      die "No changes to commit for version ${next_version}."
+    fi
+  else
+    log "Creating release commit on ${DEV_BRANCH}..."
+    git commit -m "chore(release): ${next_tag}"
+  fi
+
+  log "Pushing ${DEV_BRANCH}..."
+  git push origin "${DEV_BRANCH}"
+
+  log "Switching to ${PROD_BRANCH}..."
+  switch_branch "${PROD_BRANCH}"
+
+  log "Updating ${PROD_BRANCH}..."
+  git pull --ff-only origin "${PROD_BRANCH}"
+
+  log "Merging ${DEV_BRANCH} into ${PROD_BRANCH}..."
+  git merge --no-edit "${DEV_BRANCH}"
+
+  log "Pushing ${PROD_BRANCH}..."
+  git push origin "${PROD_BRANCH}"
+
+  log "Creating and pushing tag ${next_tag}..."
+  git tag -a "${next_tag}" -m "Release ${next_tag}"
+  git push origin "${next_tag}"
+
+  create_github_release_if_possible "${next_tag}"
+
+  log "Switching back to ${DEV_BRANCH}..."
+  switch_branch "${DEV_BRANCH}"
+  git pull --ff-only origin "${DEV_BRANCH}"
+
+  log ""
+  log "Release completed successfully: ${next_tag}"
 }
 
 main "$@"
