@@ -5,7 +5,6 @@ DEV_BRANCH="${DEV_BRANCH:-develop}"
 PROD_BRANCH="${PROD_BRANCH:-main}"
 
 VERSION_FILE="VERSION"
-API_VERSION_FILE="api/VERSION"
 VERSION_REGEX='^[0-9]+\.[0-9]+\.[0-9]+$'
 
 log() {
@@ -27,7 +26,6 @@ ensure_repo_root() {
 
 ensure_required_files() {
   [[ -f "${VERSION_FILE}" ]] || die "Missing ${VERSION_FILE}"
-  [[ -f "${API_VERSION_FILE}" ]] || die "Missing ${API_VERSION_FILE}"
 }
 
 ensure_on_branch() {
@@ -60,16 +58,6 @@ latest_tag_version() {
     return
   fi
   echo "${tag#v}"
-}
-
-max_version() {
-  local left="$1"
-  local right="$2"
-  if [[ "$(printf '%s\n%s\n' "${left}" "${right}" | sort -V | tail -n1)" == "${left}" ]]; then
-    echo "${left}"
-  else
-    echo "${right}"
-  fi
 }
 
 is_version_greater() {
@@ -196,16 +184,13 @@ main() {
   sync_branch_with_origin "${PROD_BRANCH}"
   sync_branch_with_origin "${DEV_BRANCH}"
 
-  local root_version api_version tag_version next_version next_tag
+  local root_version tag_version next_version next_tag
   local prepared_version_already_in_files=false
   root_version="$(version_from_file "${VERSION_FILE}")"
-  api_version="$(version_from_file "${API_VERSION_FILE}")"
   tag_version="$(latest_tag_version)"
 
   validate_version "${root_version}"
-  validate_version "${api_version}"
   validate_version "${tag_version}"
-  [[ "${root_version}" == "${api_version}" ]] || die "${VERSION_FILE} and ${API_VERSION_FILE} must match."
 
   next_version="$(prompt_next_version "${tag_version}")"
   next_tag="v${next_version}"
@@ -223,9 +208,8 @@ main() {
   fi
 
   printf '%s\n' "${next_version}" > "${VERSION_FILE}"
-  printf '%s\n' "${next_version}" > "${API_VERSION_FILE}"
 
-  git add "${VERSION_FILE}" "${API_VERSION_FILE}"
+  git add "${VERSION_FILE}"
   if git diff --cached --quiet; then
     if [[ "${prepared_version_already_in_files}" == true ]]; then
       log "Version ${next_version} is already prepared on ${DEV_BRANCH}, skipping version commit."

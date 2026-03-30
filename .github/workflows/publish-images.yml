@@ -60,15 +60,9 @@ jobs:
           fi
 
           ROOT_VERSION="$(tr -d '[:space:]' < VERSION)"
-          API_VERSION="$(tr -d '[:space:]' < api/VERSION)"
 
           if [[ "${ROOT_VERSION}" != "${VERSION}" ]]; then
             echo "VERSION file (${ROOT_VERSION}) does not match tag (${VERSION})." >&2
-            exit 1
-          fi
-
-          if [[ "${API_VERSION}" != "${VERSION}" ]]; then
-            echo "api/VERSION (${API_VERSION}) does not match tag (${VERSION})." >&2
             exit 1
           fi
 
