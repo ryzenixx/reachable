@@ -129,42 +129,6 @@ prompt_next_version() {
   echo "${selected}"
 }
 
-create_github_release_if_possible() {
-  local tag="$1"
-  local origin_url
-  origin_url="$(git remote get-url origin 2>/dev/null || true)"
-
-  if [[ "${origin_url}" != *github.com* ]]; then
-    log "Tag pushed: ${tag}"
-    log "Origin is not a GitHub remote, skipping gh release creation."
-    return
-  fi
-
-  if ! command -v gh >/dev/null 2>&1; then
-    log "Tag pushed: ${tag}"
-    log "GitHub CLI not found, create the release manually if needed."
-    return
-  fi
-
-  if ! gh auth status >/dev/null 2>&1; then
-    log "Tag pushed: ${tag}"
-    log "GitHub CLI not authenticated, run 'gh auth login' to auto-create releases."
-    return
-  fi
-
-  if gh release view "${tag}" >/dev/null 2>&1; then
-    log "GitHub release already exists: ${tag}"
-    return
-  fi
-
-  if gh release create "${tag}" --verify-tag --generate-notes; then
-    log "GitHub release created: ${tag}"
-  else
-    log "Tag pushed: ${tag}"
-    log "GitHub release creation failed via gh CLI, create it manually if needed."
-  fi
-}
-
 main() {
   if [[ $# -ne 0 ]]; then
     die "This command has no modes/options. Use only: git release"
@@ -236,8 +200,8 @@ main() {
   log "Creating and pushing tag ${next_tag}..."
   git tag -a "${next_tag}" -m "Release ${next_tag}"
   git push origin "${next_tag}"
-
-  create_github_release_if_possible "${next_tag}"
+  log "Tag pushed: ${next_tag}"
+  log "GitHub Release will be created by the publish-images workflow after a successful image build."
 
   log "Final branch synchronization..."
   sync_branch_with_origin "${PROD_BRANCH}"

@@ -1,23 +1,22 @@
 name: Publish Docker Images
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - "v*"
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 concurrency:
-  group: publish-images-${{ github.event.release.tag_name }}
+  group: publish-images-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   publish:
     name: Publish Reachable image
     runs-on: ubuntu-latest
-    if: startsWith(github.event.release.tag_name, 'v')
 
     steps:
       - name: Checkout
@@ -36,7 +35,7 @@ jobs:
       - name: Validate release tag and branch
         id: version
         env:
-          TAG_NAME: ${{ github.event.release.tag_name }}
+          TAG_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -66,16 +65,18 @@ jobs:
             exit 1
           fi
 
-          SHORT_SHA="${GITHUB_SHA::7}"
+          SHORT_SHA="${TAG_SHA::7}"
 
           IMAGE="ghcr.io/${{ steps.owner.outputs.owner_lc }}/${{ steps.repo.outputs.repo_name }}"
 
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tags<<EOF" >> "$GITHUB_OUTPUT"
-          echo "${IMAGE}:latest" >> "$GITHUB_OUTPUT"
-          echo "${IMAGE}:${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          echo "${IMAGE}:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=${VERSION}"
+            echo "tags<<EOF"
+            echo "${IMAGE}:latest"
+            echo "${IMAGE}:${TAG_NAME}"
+            echo "${IMAGE}:sha-${SHORT_SHA}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -103,3 +104,10 @@ jobs:
           cache-to: type=gha,mode=max,scope=reachable
           provenance: false
           sbom: false
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          make_latest: true
