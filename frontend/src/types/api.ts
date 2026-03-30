@@ -188,3 +188,12 @@ export type CreateApiTokenResponse = {
   name: string;
   expires_at: string | null;
 };
+
+export type SystemVersionSummary = {
+  current_version: string;
+  latest_version: string | null;
+  latest_release_url: string | null;
+  update_available: boolean;
+  update_check_enabled: boolean;
+  checked_at: string | null;
+};

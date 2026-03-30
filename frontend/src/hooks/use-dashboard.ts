@@ -41,6 +41,7 @@ export {
   useOrganizationSettings,
   useUpdateOrganizationSettings,
 } from "@/hooks/dashboard/settings";
+export { useSystemVersion } from "@/hooks/dashboard/system";
 export {
   useApiTokens,
   useCreateApiToken,

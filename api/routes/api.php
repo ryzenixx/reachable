@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\OrganizationSettingsController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\SubscriberController;
+use App\Http\Controllers\Api\SystemVersionController;
 use App\Http\Controllers\Api\UptimeController;
 use App\Http\Controllers\PublicStatusController;
 use Illuminate\Support\Facades\Route;
@@ -61,6 +62,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('dashboard/settings/organization', [OrganizationSettingsController::class, 'show']);
         Route::patch('dashboard/settings/organization/{organization}', [OrganizationSettingsController::class, 'update']);
         Route::delete('dashboard/settings/organization/{organization}', [OrganizationSettingsController::class, 'destroy']);
+        Route::get('dashboard/system/version', [SystemVersionController::class, 'show']);
 
         Route::get('dashboard/tokens', [ApiTokenController::class, 'index']);
         Route::post('dashboard/tokens', [ApiTokenController::class, 'store']);

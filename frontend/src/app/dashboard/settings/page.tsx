@@ -17,6 +17,7 @@ import { DangerZonePanel } from "@/features/settings/danger-zone-panel";
 import { GeneralSettingsFields } from "@/features/settings/general-settings-fields";
 import { SettingsTabs } from "@/features/settings/settings-tabs";
 import { SmtpSettingsFields } from "@/features/settings/smtp-settings-fields";
+import { VersionUpdateCard } from "@/features/settings/version-update-card";
 import type { SettingsTab } from "@/features/settings/types";
 import {
   normalizeSettingsFormValues,
@@ -31,6 +32,7 @@ import {
   useDeleteApiToken,
   useDeleteOrganization,
   useOrganizationSettings,
+  useSystemVersion,
   useUpdateOrganizationSettings,
 } from "@/hooks/use-dashboard";
 import { clearAuthToken } from "@/lib/auth";
@@ -57,6 +59,7 @@ export default function SettingsPage(): React.JSX.Element {
   const params = useParams<{ tab?: string }>();
 
   const settingsQuery = useOrganizationSettings();
+  const systemVersionQuery = useSystemVersion();
   const tokensQuery = useApiTokens();
   const organization = settingsQuery.data;
 
@@ -268,6 +271,15 @@ export default function SettingsPage(): React.JSX.Element {
         description="Manage organization profile, API keys, and destructive settings."
         onOpenMobileSidebar={openMobileSidebar}
         title="Settings"
+      />
+
+      <VersionUpdateCard
+        isError={systemVersionQuery.isError}
+        isLoading={systemVersionQuery.isPending}
+        onRefresh={() => {
+          void systemVersionQuery.refetch();
+        }}
+        version={systemVersionQuery.data}
       />
 
       <SettingsTabs activeTab={activeTab} onChange={switchTab} tabs={settingsTabs} />

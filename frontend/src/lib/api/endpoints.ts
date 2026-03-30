@@ -13,6 +13,7 @@ import type {
   Service,
   StatusSummary,
   Subscriber,
+  SystemVersionSummary,
   UptimeMetric,
 } from "@/types/api";
 import { apiClient, request } from "./client";
@@ -165,6 +166,10 @@ export const api = {
 
   organizationSettings(): Promise<Organization> {
     return request<Organization>({ method: "GET", url: "/dashboard/settings/organization" });
+  },
+
+  systemVersion(): Promise<SystemVersionSummary> {
+    return request<SystemVersionSummary>({ method: "GET", url: "/dashboard/system/version" });
   },
 
   updateOrganizationSettings(organizationId: string, payload: UpdateOrganizationPayload): Promise<Organization> {

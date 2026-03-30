@@ -9,6 +9,7 @@ export const dashboardKeys = {
   maintenances: ["dashboard", "maintenances"] as const,
   subscribers: ["dashboard", "subscribers"] as const,
   settings: ["dashboard", "settings"] as const,
+  systemVersion: ["dashboard", "system-version"] as const,
   apiTokens: ["dashboard", "api-tokens"] as const,
   uptime: (serviceId: string) => ["dashboard", "uptime", serviceId] as const,
 } as const;
