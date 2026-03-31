@@ -39,35 +39,63 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/logout-all', [AuthController::class, 'logoutAll']);
 
-        Route::get('/services', [StatusController::class, 'services']);
-        Route::get('/status', [StatusController::class, 'summary']);
+        // Read — requires 'read' or '*' ability
+        Route::middleware('ability:read,*')->group(function (): void {
+            Route::get('/services', [StatusController::class, 'services']);
+            Route::get('/status', [StatusController::class, 'summary']);
+            Route::get('dashboard/services', [ServiceController::class, 'index']);
+            Route::get('dashboard/services/{service}', [ServiceController::class, 'show']);
+            Route::get('dashboard/monitors', [MonitorController::class, 'index']);
+            Route::get('dashboard/monitors/{monitor}', [MonitorController::class, 'show']);
+            Route::get('dashboard/monitors/{monitor}/checks', [MonitorController::class, 'checks']);
+            Route::get('incidents', [IncidentController::class, 'index']);
+            Route::get('incidents/{incident}', [IncidentController::class, 'show']);
+            Route::get('dashboard/maintenances', [MaintenanceController::class, 'index']);
+            Route::get('dashboard/maintenances/{maintenance}', [MaintenanceController::class, 'show']);
+            Route::get('dashboard/subscribers', [SubscriberController::class, 'index']);
+            Route::get('dashboard/subscribers-export', [SubscriberController::class, 'export']);
+            Route::get('/uptime/{serviceId}', [UptimeController::class, 'show']);
+            Route::get('dashboard/system/version', [SystemVersionController::class, 'show']);
+            Route::get('dashboard/settings/organization', [OrganizationSettingsController::class, 'show']);
+            Route::get('dashboard/tokens', [ApiTokenController::class, 'index']);
+        });
 
-        Route::apiResource('dashboard/services', ServiceController::class);
-        Route::post('dashboard/services/reorder', [ServiceController::class, 'reorder']);
+        // Write — requires 'write' or '*' ability
+        Route::middleware('ability:write,*')->group(function (): void {
+            Route::post('dashboard/services', [ServiceController::class, 'store']);
+            Route::put('dashboard/services/{service}', [ServiceController::class, 'update']);
+            Route::patch('dashboard/services/{service}', [ServiceController::class, 'update']);
+            Route::delete('dashboard/services/{service}', [ServiceController::class, 'destroy']);
+            Route::post('dashboard/services/reorder', [ServiceController::class, 'reorder']);
 
-        Route::apiResource('dashboard/monitors', MonitorController::class);
-        Route::get('dashboard/monitors/{monitor}/checks', [MonitorController::class, 'checks']);
+            Route::post('dashboard/monitors', [MonitorController::class, 'store']);
+            Route::put('dashboard/monitors/{monitor}', [MonitorController::class, 'update']);
+            Route::patch('dashboard/monitors/{monitor}', [MonitorController::class, 'update']);
+            Route::delete('dashboard/monitors/{monitor}', [MonitorController::class, 'destroy']);
 
-        Route::apiResource('incidents', IncidentController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
-        Route::post('incidents/{incident}/updates', [IncidentController::class, 'addUpdate']);
+            Route::post('incidents', [IncidentController::class, 'store']);
+            Route::put('incidents/{incident}', [IncidentController::class, 'update']);
+            Route::patch('incidents/{incident}', [IncidentController::class, 'update']);
+            Route::delete('incidents/{incident}', [IncidentController::class, 'destroy']);
+            Route::post('incidents/{incident}/updates', [IncidentController::class, 'addUpdate']);
 
-        Route::apiResource('dashboard/maintenances', MaintenanceController::class);
-        Route::post('dashboard/maintenances/{maintenance}/complete', [MaintenanceController::class, 'complete']);
+            Route::post('dashboard/maintenances', [MaintenanceController::class, 'store']);
+            Route::put('dashboard/maintenances/{maintenance}', [MaintenanceController::class, 'update']);
+            Route::patch('dashboard/maintenances/{maintenance}', [MaintenanceController::class, 'update']);
+            Route::delete('dashboard/maintenances/{maintenance}', [MaintenanceController::class, 'destroy']);
+            Route::post('dashboard/maintenances/{maintenance}/complete', [MaintenanceController::class, 'complete']);
 
-        Route::get('dashboard/subscribers', [SubscriberController::class, 'index']);
-        Route::post('dashboard/subscribers', [SubscriberController::class, 'store']);
-        Route::delete('dashboard/subscribers/{subscriber}', [SubscriberController::class, 'destroy']);
-        Route::get('dashboard/subscribers-export', [SubscriberController::class, 'export']);
+            Route::post('dashboard/subscribers', [SubscriberController::class, 'store']);
+            Route::delete('dashboard/subscribers/{subscriber}', [SubscriberController::class, 'destroy']);
 
-        Route::get('dashboard/settings/organization', [OrganizationSettingsController::class, 'show']);
-        Route::patch('dashboard/settings/organization/{organization}', [OrganizationSettingsController::class, 'update']);
-        Route::delete('dashboard/settings/organization/{organization}', [OrganizationSettingsController::class, 'destroy']);
-        Route::get('dashboard/system/version', [SystemVersionController::class, 'show']);
+            Route::post('dashboard/tokens', [ApiTokenController::class, 'store']);
+            Route::delete('dashboard/tokens/{tokenId}', [ApiTokenController::class, 'destroy']);
+        });
 
-        Route::get('dashboard/tokens', [ApiTokenController::class, 'index']);
-        Route::post('dashboard/tokens', [ApiTokenController::class, 'store']);
-        Route::delete('dashboard/tokens/{tokenId}', [ApiTokenController::class, 'destroy']);
-
-        Route::get('/uptime/{serviceId}', [UptimeController::class, 'show']);
+        // Settings — requires 'settings' or '*' ability
+        Route::middleware('ability:settings,*')->group(function (): void {
+            Route::patch('dashboard/settings/organization/{organization}', [OrganizationSettingsController::class, 'update']);
+            Route::delete('dashboard/settings/organization/{organization}', [OrganizationSettingsController::class, 'destroy']);
+        });
     });
 });
