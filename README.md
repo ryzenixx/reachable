@@ -1,13 +1,13 @@
 <div align="center">
 
-<img width="2000" height="500" alt="Reachable - Open source monitoring built for the AI era." src="https://github.com/user-attachments/assets/0240d61b-8df3-48f4-bc0b-941e56926b7c#gh-light-mode-only" />
+<img width="371" height="56" alt="image" src="https://github.com/user-attachments/assets/572495b7-08c4-469d-8606-7ffb5bf51420#gh-light-mode-only" />
 
-<img width="2000" height="500" alt="Reachable - Open source monitoring built for the AI era." src="https://github.com/user-attachments/assets/651fb628-9af3-4c0e-a5ce-2fd38f9b17a9#gh-dark-mode-only" />
+<img width="371" height="56" alt="image" src="https://github.com/user-attachments/assets/cbbfe6cf-7fe0-41ca-ad2e-f8ee11c9c5ef#gh-dark-mode-only" />
 
-#
+<svg></svg>
 
-Open-source status pages and uptime monitoring.  
-Free. Self-hostable.
+Open-source status pages and uptime monitoring built for the AI era.  
+Free. Blazing-fast. Self-hostable.
 
 [Quick Start](#quick-start) • [Screenshots](#screenshots) • [Configuration](#configuration)
 
