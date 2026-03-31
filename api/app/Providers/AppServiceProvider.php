@@ -71,6 +71,14 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('authenticated', static function (Request $request): array {
+            $userId = $request->user()?->id ?? $request->ip();
+
+            return [
+                Limit::perMinute(120)->by($userId),
+            ];
+        });
+
         Gate::policy(Organization::class, OrganizationPolicy::class);
         Gate::policy(Service::class, ServicePolicy::class);
         Gate::policy(Monitor::class, MonitorPolicy::class);

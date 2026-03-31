@@ -34,7 +34,7 @@ Route::prefix('v1')->group(function (): void {
     Route::delete('/public/unsubscribe/{token}', [PublicStatusController::class, 'unsubscribe'])
         ->middleware('throttle:public-unsubscribe');
 
-    Route::middleware('auth:sanctum')->group(function (): void {
+    Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/logout-all', [AuthController::class, 'logoutAll']);
