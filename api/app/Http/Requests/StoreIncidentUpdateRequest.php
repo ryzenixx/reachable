@@ -27,7 +27,7 @@ class StoreIncidentUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message' => ['required', 'string'],
+            'message' => ['required', 'string', 'max:10000'],
             'status' => ['required', Rule::enum(IncidentStatus::class)],
         ];
     }

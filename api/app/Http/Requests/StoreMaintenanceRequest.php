@@ -24,7 +24,7 @@ class StoreMaintenanceRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
+            'description' => ['required', 'string', 'max:5000'],
             'scheduled_at' => ['required', 'date'],
             'ended_at' => ['nullable', 'date', 'after_or_equal:scheduled_at'],
             'status' => ['required', Rule::enum(MaintenanceStatus::class)],

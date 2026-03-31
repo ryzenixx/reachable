@@ -28,7 +28,7 @@ class UpdateMaintenanceRequest extends FormRequest
     {
         return [
             'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['sometimes', 'string'],
+            'description' => ['sometimes', 'string', 'max:5000'],
             'scheduled_at' => ['sometimes', 'date'],
             'ended_at' => ['nullable', 'date'],
             'status' => ['sometimes', Rule::enum(MaintenanceStatus::class)],
