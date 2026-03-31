@@ -34,6 +34,8 @@ export function useUpdateOrganizationSettings(organizationId: string) {
         smtp_encryption: values.smtp_encryption ?? "tls",
         smtp_from_address: values.smtp_from_address ?? "",
         smtp_from_name: values.smtp_from_name ?? "",
+        hcaptcha_sitekey: values.hcaptcha_sitekey ?? "",
+        hcaptcha_secret: values.hcaptcha_secret ?? "",
       };
 
       const payload = settingsSchema.parse(normalizedValues);
@@ -41,6 +43,11 @@ export function useUpdateOrganizationSettings(organizationId: string) {
       const smtpPassword =
         typeof payload.smtp_password === "string" && payload.smtp_password.trim().length > 0
           ? payload.smtp_password.trim()
+          : undefined;
+
+      const hcaptchaSecret =
+        typeof payload.hcaptcha_secret === "string" && payload.hcaptcha_secret.trim().length > 0
+          ? payload.hcaptcha_secret.trim()
           : undefined;
 
       return api.updateOrganizationSettings(organizationId, {
@@ -56,6 +63,8 @@ export function useUpdateOrganizationSettings(organizationId: string) {
         smtp_encryption: payload.smtp_encryption ?? null,
         smtp_from_address: normalizeOptionalText(payload.smtp_from_address),
         smtp_from_name: normalizeOptionalText(payload.smtp_from_name),
+        hcaptcha_sitekey: normalizeOptionalText(payload.hcaptcha_sitekey),
+        hcaptcha_secret: hcaptchaSecret,
       });
     },
     onSuccess: (updated) => {

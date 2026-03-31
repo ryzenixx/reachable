@@ -96,6 +96,8 @@ export type UpdateOrganizationPayload = {
   smtp_encryption?: "none" | "tls" | "ssl" | null;
   smtp_from_address?: string | null;
   smtp_from_name?: string | null;
+  hcaptcha_sitekey?: string | null;
+  hcaptcha_secret?: string;
 };
 
 export type CreateApiTokenPayload = {
