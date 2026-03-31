@@ -9,10 +9,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('unsubscribes a subscriber token only once', function (): void {
-    Organization::factory()->create();
+    $organization = Organization::factory()->create();
 
     /** @var Subscriber $subscriber */
-    $subscriber = Subscriber::factory()->create([
+    $subscriber = Subscriber::factory()->for($organization)->create([
         'confirmed_at' => now(),
     ]);
 

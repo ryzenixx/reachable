@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(\App\Http\Middleware\AuthTokenFromCookie::class);
         $middleware->alias([
-            'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+            'ability' => \App\Http\Middleware\CheckTokenAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
