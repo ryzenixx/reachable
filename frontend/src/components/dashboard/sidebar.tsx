@@ -3,22 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   Bell,
-  ChartNoAxesCombined,
-  CircleGauge,
   LayoutDashboard,
   LogOut,
+  Server,
   Settings,
   ShieldAlert,
-  User,
   Wrench,
 } from "lucide-react";
 import { OrganizationAvatar } from "@/components/app/organization-avatar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSystemVersion } from "@/hooks/dashboard/system";
 import { cn } from "@/lib/utils";
 
@@ -30,12 +26,11 @@ type DashboardNavItem = {
 
 const navItems: DashboardNavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/services", label: "Services", icon: CircleGauge },
-  { href: "/dashboard/monitors", label: "Monitors", icon: ChartNoAxesCombined },
+  { href: "/dashboard/services", label: "Services", icon: Server },
+  { href: "/dashboard/monitors", label: "Monitors", icon: Activity },
   { href: "/dashboard/incidents", label: "Incidents", icon: ShieldAlert },
   { href: "/dashboard/maintenances", label: "Maintenances", icon: Wrench },
   { href: "/dashboard/subscribers", label: "Subscribers", icon: Bell },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 type DashboardSidebarProps = {
@@ -68,8 +63,8 @@ export function DashboardSidebar({
   }
 
   return (
-    <aside className="flex h-full w-60 flex-col border-r bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-4">
+    <aside className="flex h-full w-60 flex-col bg-[#fafafa]">
+      <div className="px-5 pt-6 pb-5">
         <div className="flex items-center gap-3">
           <OrganizationAvatar
             className="h-8 w-8"
@@ -78,21 +73,17 @@ export function DashboardSidebar({
               logo_url: organizationLogoUrl,
             }}
           />
-          <div>
-            <p className="text-sm font-semibold">{organizationName}</p>
-            <p className="text-xs text-muted-foreground">Reachable</p>
-          </div>
+          <span className="text-sm font-semibold text-neutral-900 truncate">{organizationName}</span>
         </div>
-        <ThemeToggle />
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 px-3 space-y-0.5">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted",
-              isNavItemActive(href) && "bg-muted text-foreground",
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-900 hover:bg-white",
+              isNavItemActive(href) && "text-neutral-900 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
             )}
             href={href}
             onClick={onNavigate}
@@ -101,64 +92,58 @@ export function DashboardSidebar({
             <span>{label}</span>
           </Link>
         ))}
+
+        <div className="pt-3">
+          <Link
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-900 hover:bg-white",
+              pathname.startsWith("/dashboard/settings") && "text-neutral-900 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+            )}
+            href="/dashboard/settings"
+            onClick={onNavigate}
+          >
+            <Settings className="size-4" />
+            <span>Settings</span>
+          </Link>
+        </div>
       </nav>
 
       {!isDev && (
-        <div className="px-4 pb-3">
+        <div className="px-5 pb-3">
           {systemVersionQuery.isPending ? (
-            <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
-              <Skeleton className="h-3 w-14" />
-              <Skeleton className="h-5 w-24 rounded-full" />
-            </div>
+            <Skeleton className="h-4 w-16" />
           ) : systemVersionQuery.data ? (
-            <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
-              <span className="text-xs font-medium text-muted-foreground">v{systemVersionQuery.data.current_version}</span>
-              <Badge
-                className={
-                  systemVersionQuery.data.update_available
-                    ? "rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300"
-                    : "rounded-md bg-green-500/15 text-green-700 dark:text-green-300"
-                }
-              >
-                {systemVersionQuery.data.update_available ? "Update Available" : "Up to Date"}
-              </Badge>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-neutral-400">v{systemVersionQuery.data.current_version}</span>
+              {systemVersionQuery.data.update_available && (
+                <Badge className="h-4 rounded px-1.5 text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-50">
+                  Update
+                </Badge>
+              )}
             </div>
-          ) : (
-            <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
-              <span className="text-xs font-medium text-muted-foreground">v—</span>
-              <Badge className="rounded-md bg-muted text-foreground">Up to Date</Badge>
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 
-      <div className="border-t p-4">
-        <div className="rounded-md border p-2">
-          <div className="flex items-center justify-between gap-2">
-            <Avatar>
-              <AvatarFallback>
-                <User className="size-3" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{userName}</p>
-              <p className="truncate text-xs text-muted-foreground">{organizationName}</p>
-            </div>
-            <Button
-              aria-label={isLoggingOut ? "Signing out" : "Log out"}
-              className="size-8 shrink-0 p-0"
-              disabled={isLoggingOut}
-              onClick={() => {
-                onNavigate?.();
-                onLogout?.();
-              }}
-              variant="ghost"
-            >
-              <LogOut className="size-3.5" />
-              <span className="sr-only">{isLoggingOut ? "Signing out" : "Log out"}</span>
-            </Button>
-          </div>
+      <div className="mx-3 mb-4 mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200/80 text-xs font-semibold text-neutral-600">
+          {userName.charAt(0).toUpperCase()}
         </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-neutral-900">{userName}</p>
+        </div>
+        <button
+          type="button"
+          aria-label={isLoggingOut ? "Signing out" : "Log out"}
+          className="rounded-md p-1.5 text-neutral-400 transition-colors hover:text-neutral-600 hover:bg-neutral-100 disabled:opacity-50"
+          disabled={isLoggingOut}
+          onClick={() => {
+            onNavigate?.();
+            onLogout?.();
+          }}
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
     </aside>
   );

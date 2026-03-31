@@ -40,79 +40,75 @@ export function MonitorSectionsTable({
   onEditMonitor,
 }: MonitorSectionsTableProps): React.JSX.Element {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {sections.map(({ service, monitors }) => (
-        <div key={service.id} className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold">{service.name}</h2>
-            </div>
-            <Button onClick={() => onCreateMonitor(service.id)} size="sm" variant="outline">
-              <Plus className="size-4" />
-              Add monitor
+        <div key={service.id}>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-medium text-neutral-900">{service.name}</h2>
+            <Button className="h-7 text-xs" onClick={() => onCreateMonitor(service.id)} size="sm" variant="ghost">
+              <Plus className="size-3" />
+              Add
             </Button>
           </div>
 
           <Table className="table-fixed">
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[34%] min-w-[220px]">Target</TableHead>
-                <TableHead className="w-[110px]">Type</TableHead>
-                <TableHead className="w-[90px]">Interval</TableHead>
-                <TableHead className="w-[140px]">Last status</TableHead>
-                <TableHead className="w-[110px]">Response</TableHead>
-                <TableHead className="w-[150px]">Last checked</TableHead>
-                <TableHead className="w-[140px]">Sparkline</TableHead>
-                <TableHead className="w-[150px] text-right">Actions</TableHead>
+              <TableRow className="border-neutral-100">
+                <TableHead className="w-[34%] min-w-[200px] text-xs font-medium uppercase tracking-wider text-neutral-400">Target</TableHead>
+                <TableHead className="w-[80px] text-xs font-medium uppercase tracking-wider text-neutral-400">Type</TableHead>
+                <TableHead className="w-[80px] text-xs font-medium uppercase tracking-wider text-neutral-400">Interval</TableHead>
+                <TableHead className="w-[120px] text-xs font-medium uppercase tracking-wider text-neutral-400">Status</TableHead>
+                <TableHead className="w-[90px] text-xs font-medium uppercase tracking-wider text-neutral-400">Response</TableHead>
+                <TableHead className="w-[130px] text-xs font-medium uppercase tracking-wider text-neutral-400">Checked</TableHead>
+                <TableHead className="w-[120px] text-xs font-medium uppercase tracking-wider text-neutral-400">Trend</TableHead>
+                <TableHead className="w-[80px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {monitors.map((monitor) => (
-                <TableRow key={monitor.id}>
+                <TableRow key={monitor.id} className="border-neutral-100">
                   <TableCell className="max-w-0">
-                    <p className="truncate text-sm font-medium">{monitor.url}</p>
+                    <p className="truncate text-sm font-medium text-neutral-900">{monitor.url}</p>
                   </TableCell>
-                  <TableCell className="w-[110px]">
+                  <TableCell>
                     <MonitorTypeBadge type={monitor.type} />
                   </TableCell>
-                  <TableCell className="w-[90px] text-sm text-muted-foreground">{monitor.interval_seconds}s</TableCell>
-                  <TableCell className="w-[140px]">
+                  <TableCell className="text-sm tabular-nums text-neutral-500">{monitor.interval_seconds}s</TableCell>
+                  <TableCell>
                     <StatusBadge status={monitorStatusToServiceStatus(monitor)} />
                   </TableCell>
-                  <TableCell className="w-[110px] text-sm text-muted-foreground">
-                    {monitor.latest_check ? `${monitor.latest_check.response_time_ms}ms` : "-"}
+                  <TableCell className="text-sm tabular-nums text-neutral-500">
+                    {monitor.latest_check ? `${monitor.latest_check.response_time_ms}ms` : "\u2014"}
                   </TableCell>
-                  <TableCell className="w-[150px] text-sm text-muted-foreground">
+                  <TableCell className="text-xs text-neutral-400">
                     {monitor.latest_check ? formatRelativePrecise(monitor.latest_check.checked_at) : "Never"}
                   </TableCell>
-                  <TableCell className="w-[140px]">
+                  <TableCell>
                     <MonitorSparkline monitor={monitor} />
                   </TableCell>
-                  <TableCell className="w-[150px]">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button onClick={() => onEditMonitor(monitor)} size="sm" variant="ghost">
-                        <Pencil className="size-4" />
-                        Edit
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button className="h-7 px-2 text-neutral-500" onClick={() => onEditMonitor(monitor)} size="sm" variant="ghost">
+                        <Pencil className="size-3" />
                       </Button>
 
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost">
-                            <Trash2 className="size-4" />
-                            Delete
+                          <Button className="h-7 px-2 text-neutral-400 hover:text-red-600" size="sm" variant="ghost">
+                            <Trash2 className="size-3" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete monitor</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This permanently removes monitor checks and alert history for {monitor.url}.
+                              This permanently removes check history for {monitor.url}.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancelButton>Cancel</AlertDialogCancelButton>
                             <AlertDialogActionButton onClick={() => void onDeleteMonitor(monitor)}>
-                              Delete monitor
+                              Delete
                             </AlertDialogActionButton>
                           </AlertDialogFooter>
                         </AlertDialogContent>

@@ -166,12 +166,12 @@ export default function ServicesPage(): React.JSX.Element {
       />
       <DashboardPageHeader
         action={
-          <Button onClick={openCreateSheet}>
-            <Plus className="size-4" />
+          <Button onClick={openCreateSheet} size="sm">
+            <Plus className="size-3.5" />
             Add service
           </Button>
         }
-        description="Manage services, statuses, and display order on your public page."
+        description="Manage services and display order."
         onOpenMobileSidebar={openMobileSidebar}
         title="Services"
       />

@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import type { Service } from "@/types/api";
 import { StatusBadge } from "@/components/status/status-badge";
 import {
@@ -26,44 +26,6 @@ type SortableServiceRowProps = {
   service: Service;
 };
 
-function ServiceActions({
-  service,
-  onDelete,
-  onEdit,
-}: Omit<SortableServiceRowProps, "monitorsCount">): React.JSX.Element {
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <Button onClick={() => onEdit(service)} size="sm" variant="ghost">
-        <Pencil className="size-4" />
-        Edit
-      </Button>
-
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button size="sm" variant="ghost">
-            <Trash2 className="size-4" />
-            Delete
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete service</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action permanently removes {service.name} and all linked monitors.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancelButton>Cancel</AlertDialogCancelButton>
-            <AlertDialogActionButton onClick={() => void onDelete(service)}>
-              Delete service
-            </AlertDialogActionButton>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
-
 export function SortableServiceRow({
   monitorsCount,
   onDelete,
@@ -77,34 +39,61 @@ export function SortableServiceRow({
   return (
     <TableRow
       ref={setNodeRef}
+      className="border-neutral-100"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
       }}
     >
-      <TableCell className="w-9">
+      <TableCell className="w-8 pr-0">
         <button
-          className="text-muted-foreground"
+          className="cursor-grab text-neutral-300 hover:text-neutral-500 active:cursor-grabbing"
           type="button"
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="size-4" />
+          <GripVertical className="size-3.5" />
           <span className="sr-only">Drag to reorder</span>
         </button>
       </TableCell>
       <TableCell>
-        <p className="text-sm font-medium">{service.name}</p>
+        <span className="text-sm font-medium text-neutral-900">{service.name}</span>
       </TableCell>
       <TableCell>
         <StatusBadge status={service.status} />
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">{monitorsCount}</TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {service.uptime_percentage === null ? "No data" : `${service.uptime_percentage.toFixed(2)}%`}
+      <TableCell className="text-sm tabular-nums text-neutral-500">{monitorsCount}</TableCell>
+      <TableCell className="text-sm tabular-nums text-neutral-500">
+        {service.uptime_percentage === null ? "\u2014" : `${service.uptime_percentage.toFixed(2)}%`}
       </TableCell>
       <TableCell>
-        <ServiceActions onDelete={onDelete} onEdit={onEdit} service={service} />
+        <div className="flex items-center justify-end gap-1">
+          <Button className="h-7 px-2 text-neutral-500" onClick={() => onEdit(service)} size="sm" variant="ghost">
+            <Pencil className="size-3" />
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button className="h-7 px-2 text-neutral-400 hover:text-red-600" size="sm" variant="ghost">
+                <Trash2 className="size-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete service</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes {service.name} and all linked monitors.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancelButton>Cancel</AlertDialogCancelButton>
+                <AlertDialogActionButton onClick={() => void onDelete(service)}>
+                  Delete
+                </AlertDialogActionButton>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </TableCell>
     </TableRow>
   );

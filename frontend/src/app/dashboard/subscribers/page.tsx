@@ -83,17 +83,17 @@ export default function SubscribersPage(): React.JSX.Element {
       <DashboardPageHeader
         action={
           <div className="flex items-center gap-2">
-            <Button onClick={exportCsv} variant="outline">
-              <Download className="size-4" />
+            <Button className="text-[13px]" onClick={exportCsv} size="sm" variant="outline">
+              <Download className="size-3.5" />
               Export CSV
             </Button>
-            <Button onClick={() => setIsSheetOpen(true)}>
-              <Plus className="size-4" />
+            <Button onClick={() => setIsSheetOpen(true)} size="sm">
+              <Plus className="size-3.5" />
               Add subscriber
             </Button>
           </div>
         }
-        description="Manage subscribers and export your confirmed recipients."
+        description="Manage email subscribers."
         onOpenMobileSidebar={openMobileSidebar}
         title="Subscribers"
       />

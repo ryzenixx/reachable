@@ -1,4 +1,5 @@
 import { Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogActionButton,
@@ -10,7 +11,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRelative } from "@/lib/dates";
@@ -25,36 +25,36 @@ export function SubscribersTable({ onDeleteSubscriber, subscribers }: Subscriber
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Email</TableHead>
-          <TableHead>Confirmed</TableHead>
-          <TableHead>Subscribed</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+        <TableRow className="border-neutral-100">
+          <TableHead className="">Email</TableHead>
+          <TableHead className="">Status</TableHead>
+          <TableHead className="">Subscribed</TableHead>
+          <TableHead className="w-[80px]" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {subscribers.map((subscriber) => (
-          <TableRow key={subscriber.id}>
-            <TableCell className="text-sm font-medium">{subscriber.email}</TableCell>
+          <TableRow key={subscriber.id} className="border-neutral-100">
+            <TableCell className="text-sm font-medium text-neutral-900">{subscriber.email}</TableCell>
             <TableCell>
-              <Badge
-                className={
-                  subscriber.confirmed_at
-                    ? "bg-green-500/15 text-green-700 dark:text-green-300"
-                    : "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
-                }
-              >
+              <span className={cn(
+                "inline-flex items-center gap-1.5 text-xs font-medium",
+                subscriber.confirmed_at ? "text-green-600" : "text-neutral-400",
+              )}>
+                <span className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  subscriber.confirmed_at ? "bg-green-500" : "bg-neutral-300",
+                )} />
                 {subscriber.confirmed_at ? "Confirmed" : "Pending"}
-              </Badge>
+              </span>
             </TableCell>
-            <TableCell className="text-sm text-muted-foreground">{formatRelative(subscriber.created_at)}</TableCell>
+            <TableCell className="text-xs text-neutral-400">{formatRelative(subscriber.created_at)}</TableCell>
             <TableCell>
               <div className="flex items-center justify-end">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="ghost">
-                      <Trash2 className="size-4" />
-                      Remove
+                    <Button className="h-7 px-2 text-neutral-400 hover:text-red-600" size="sm" variant="ghost">
+                      <Trash2 className="size-3" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -67,7 +67,7 @@ export function SubscribersTable({ onDeleteSubscriber, subscribers }: Subscriber
                     <AlertDialogFooter>
                       <AlertDialogCancelButton>Cancel</AlertDialogCancelButton>
                       <AlertDialogActionButton onClick={() => void onDeleteSubscriber(subscriber)}>
-                        Remove subscriber
+                        Remove
                       </AlertDialogActionButton>
                     </AlertDialogFooter>
                   </AlertDialogContent>

@@ -13,7 +13,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 type DangerZonePanelProps = {
@@ -32,30 +31,27 @@ export function DangerZonePanel({
   onDelete,
 }: DangerZonePanelProps): React.JSX.Element {
   return (
-    <Card className="border-red-500/30">
-      <CardHeader>
-        <CardTitle className="text-base text-red-700 dark:text-red-300">Danger zone</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-300">
-          <AlertTriangle className="mt-0.5 size-4" />
+    <div className="max-w-xl">
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <p>Deleting the organization is irreversible and will remove services, monitors, incidents, and subscribers.</p>
         </div>
 
         <Input
           onChange={(event) => onChangeDeleteConfirmation(event.target.value)}
-          placeholder={`Type \"${organizationName}\" to confirm`}
+          placeholder={`Type "${organizationName}" to confirm`}
           value={deleteConfirmation}
         />
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
-              className="w-full"
               disabled={deleteConfirmation !== organizationName || isDeleting}
+              size="sm"
               variant="destructive"
             >
-              <Trash2 className="size-4" />
+              <Trash2 className="size-3.5" />
               Delete organization
             </Button>
           </AlertDialogTrigger>
@@ -63,7 +59,7 @@ export function DangerZonePanel({
             <AlertDialogHeader>
               <AlertDialogTitle>Delete organization</AlertDialogTitle>
               <AlertDialogDescription>
-                This action is permanent. Type confirmation is valid, do you want to continue?
+                This action is permanent and cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -74,7 +70,7 @@ export function DangerZonePanel({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

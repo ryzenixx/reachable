@@ -76,7 +76,7 @@ export function SubscribeDialog({ isEnabled = true }: SubscribeDialogProps): Rea
         {submitted ? (
           <div className="space-y-3 rounded-lg border bg-muted/50 p-4 text-sm">
             <div className="flex items-center gap-2 font-medium text-foreground">
-              <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
+              <CheckCircle2 className="size-4 text-green-600" />
               Confirmation sent
             </div>
             <p className="text-muted-foreground">Check your inbox and click the confirmation link to finish subscribing.</p>

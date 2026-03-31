@@ -3,7 +3,6 @@ import type { UseFormReturn } from "react-hook-form";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,11 +26,9 @@ export function IncidentUpdateFormCard({
   previewMessage,
 }: IncidentUpdateFormCardProps): React.JSX.Element {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Add update</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="mt-6">
+      <h3 className="text-sm font-medium text-neutral-900">Add update</h3>
+      <div className="mt-3">
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
@@ -39,7 +36,7 @@ export function IncidentUpdateFormCard({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel className="text-sm text-neutral-600">Status</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger>
@@ -58,20 +55,26 @@ export function IncidentUpdateFormCard({
               )}
             />
 
-            <div className="flex items-center gap-2">
-              <Button onClick={() => onPreviewChange(false)} size="sm" type="button" variant={!isPreview ? "default" : "outline"}>
-                <PencilLine className="size-4" />
+            <div className="flex items-center gap-1">
+              <button
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${!isPreview ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}
+                onClick={() => onPreviewChange(false)}
+                type="button"
+              >
                 Write
-              </Button>
-              <Button onClick={() => onPreviewChange(true)} size="sm" type="button" variant={isPreview ? "default" : "outline"}>
-                <Eye className="size-4" />
+              </button>
+              <button
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${isPreview ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}
+                onClick={() => onPreviewChange(true)}
+                type="button"
+              >
                 Preview
-              </Button>
+              </button>
             </div>
 
             {isPreview ? (
-              <div className="prose prose-sm min-h-40 max-w-none rounded-md border p-3 dark:prose-invert">
-                <Markdown remarkPlugins={[remarkGfm]}>{previewMessage || "Nothing to preview yet."}</Markdown>
+              <div className="prose prose-sm prose-neutral min-h-32 max-w-none rounded-md border border-neutral-200 p-3 text-sm">
+                <Markdown remarkPlugins={[remarkGfm]}>{previewMessage || "Nothing to preview."}</Markdown>
               </div>
             ) : (
               <FormField
@@ -79,9 +82,8 @@ export function IncidentUpdateFormCard({
                 name="message"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Message</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="We have identified the issue and are deploying a fix." {...field} />
+                      <Textarea className="min-h-32 text-sm" placeholder="Describe the update..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -89,12 +91,12 @@ export function IncidentUpdateFormCard({
               />
             )}
 
-            <Button disabled={isSubmitting} type="submit">
+            <Button disabled={isSubmitting} size="sm" type="submit">
               Publish update
             </Button>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import type { MonitorType } from "@/types/api";
 
 const monitorTypeLabelMap: Record<MonitorType, string> = {
@@ -12,5 +11,9 @@ type MonitorTypeBadgeProps = {
 };
 
 export function MonitorTypeBadge({ type }: MonitorTypeBadgeProps): React.JSX.Element {
-  return <Badge className="bg-muted text-foreground">{monitorTypeLabelMap[type]}</Badge>;
+  return (
+    <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
+      {monitorTypeLabelMap[type]}
+    </span>
+  );
 }

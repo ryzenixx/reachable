@@ -84,7 +84,7 @@ export function PublicIncidentPageClient({ incidentId }: PublicIncidentPageClien
                 <IncidentStatusBadge status={update.status} />
                 <p className="text-xs text-muted-foreground">{formatRelative(update.created_at)}</p>
               </div>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div className="prose prose-sm max-w-none">
                 <Markdown remarkPlugins={[remarkGfm]}>{update.message}</Markdown>
               </div>
             </article>

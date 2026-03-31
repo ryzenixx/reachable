@@ -31,13 +31,13 @@ export function SmtpSettingsFields({
           <FormItem className="flex flex-col items-start gap-2">
             <FormLabel className="block">SMTP status</FormLabel>
             <FormControl>
-              <div className="inline-flex w-fit rounded-md border bg-background p-1">
+              <div className="inline-flex w-fit rounded-md border border-neutral-200 bg-white p-1">
                 <button
                   className={cn(
                     "rounded-sm px-3 py-1.5 text-xs font-medium transition-colors",
                     toSmtpStatusValue(field.value) === "enabled"
-                      ? "bg-green-500/15 text-green-700 dark:text-green-300"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "bg-green-500/15 text-green-700"
+                      : "text-neutral-400 hover:text-neutral-700",
                   )}
                   onClick={() => field.onChange("enabled")}
                   type="button"
@@ -48,8 +48,8 @@ export function SmtpSettingsFields({
                   className={cn(
                     "rounded-sm px-3 py-1.5 text-xs font-medium transition-colors",
                     toSmtpStatusValue(field.value) === "disabled"
-                      ? "bg-red-500/15 text-red-700 dark:text-red-300"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "bg-red-500/15 text-red-700"
+                      : "text-neutral-400 hover:text-neutral-700",
                   )}
                   onClick={() => field.onChange("disabled")}
                   type="button"
@@ -181,7 +181,7 @@ export function SmtpSettingsFields({
                 />
               </FormControl>
               {organization.smtp_password_set ? (
-                <p className="text-xs text-muted-foreground">Saved password detected. Leave blank to keep it unchanged.</p>
+                <p className="text-xs text-neutral-400">Saved password detected. Leave blank to keep it unchanged.</p>
               ) : null}
               <FormMessage />
             </FormItem>

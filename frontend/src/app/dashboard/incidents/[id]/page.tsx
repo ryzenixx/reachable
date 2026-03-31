@@ -11,7 +11,6 @@ import { PageMeta } from "@/components/app/page-meta";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { useDashboardShell } from "@/components/dashboard/shell-context";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IncidentDetailsCard } from "@/features/incidents/incident-details-card";
 import { INCIDENT_UPDATE_DEFAULT_VALUES } from "@/features/incidents/detail-constants";
@@ -93,20 +92,20 @@ export default function IncidentDetailPage(): React.JSX.Element {
         action={
           <div className="flex items-center gap-2">
             {incident?.status !== "resolved" ? (
-              <Button onClick={() => void resolveIncident()} variant="outline">
-                <CheckCircle2 className="size-4" />
-                Resolve incident
+              <Button className="text-[13px]" onClick={() => void resolveIncident()} size="sm" variant="outline">
+                <CheckCircle2 className="size-3.5" />
+                Resolve
               </Button>
             ) : null}
-            <Button asChild variant="ghost">
+            <Button asChild className="text-[13px] text-neutral-500" size="sm" variant="ghost">
               <Link href="/dashboard/incidents">
-                <ArrowLeft className="size-4" />
+                <ArrowLeft className="size-3.5" />
                 Back
               </Link>
             </Button>
           </div>
         }
-        description="Public timeline and internal updates for this incident."
+        description="Timeline and updates."
         onOpenMobileSidebar={openMobileSidebar}
         title={incident?.title ?? "Incident"}
       />
@@ -118,9 +117,7 @@ export default function IncidentDetailPage(): React.JSX.Element {
           <Skeleton className="h-56 w-full" />
         </div>
       ) : !incident ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">Incident not found.</CardContent>
-        </Card>
+        <p className="py-8 text-[13px] text-neutral-400">Incident not found.</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[1.8fr_1fr]">
           <div className="space-y-4">

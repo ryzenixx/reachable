@@ -9,7 +9,6 @@ import { PageMeta } from "@/components/app/page-meta";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { useDashboardShell } from "@/components/dashboard/shell-context";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiSettingsPanel } from "@/features/settings/api-settings-panel";
@@ -252,9 +251,7 @@ export default function SettingsPage(): React.JSX.Element {
 
   if (!organization) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground">Unable to load organization settings.</CardContent>
-      </Card>
+      <p className="py-8 text-[13px] text-neutral-400">Unable to load organization settings.</p>
     );
   }
 
@@ -265,7 +262,7 @@ export default function SettingsPage(): React.JSX.Element {
         title="Settings | Reachable"
       />
       <DashboardPageHeader
-        description="Manage organization profile, API keys, and destructive settings."
+        description="Organization profile, API keys, and advanced settings."
         onOpenMobileSidebar={openMobileSidebar}
         title="Settings"
       />
@@ -273,14 +270,11 @@ export default function SettingsPage(): React.JSX.Element {
       <SettingsTabs activeTab={activeTab} onChange={switchTab} tabs={settingsTabs} />
 
       {(activeTab === "general" || activeTab === "smtp") ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{activeTab === "general" ? "General" : "SMTP email delivery"}</CardTitle>
-            {activeTab === "smtp" ? (
-              <CardDescription>Configure custom SMTP for subscription confirmations and incident notifications.</CardDescription>
-            ) : null}
-          </CardHeader>
-          <CardContent>
+        <div className="max-w-xl">
+          {activeTab === "smtp" ? (
+            <p className="mb-4 text-[12px] text-neutral-400">Custom SMTP for notifications and confirmations.</p>
+          ) : null}
+          <div>
             <Form {...form}>
               <form className="space-y-4" onSubmit={submitSettings}>
                 {activeTab === "general" ? (
@@ -294,13 +288,13 @@ export default function SettingsPage(): React.JSX.Element {
                   />
                 )}
 
-                <Button disabled={updateSettingsMutation.isPending} type="submit">
+                <Button disabled={updateSettingsMutation.isPending} size="sm" type="submit">
                   Save changes
                 </Button>
               </form>
             </Form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : null}
 
       {activeTab === "api" ? (

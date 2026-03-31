@@ -18,7 +18,7 @@ export function MonitorSparkline({ monitor }: MonitorSparklineProps): React.JSX.
     }));
 
   if (data.length === 0) {
-    return <span className="text-xs text-muted-foreground">No data</span>;
+    return <span className="text-[11px] text-neutral-400">No data</span>;
   }
 
   return (
@@ -42,18 +42,13 @@ export function MonitorSparkline({ monitor }: MonitorSparklineProps): React.JSX.
                   : "N/A";
 
               return (
-                <div className="rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-sm">
-                  <p className="font-medium">{responseMs}</p>
-                  <p className="text-muted-foreground">
+                <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-[11px] shadow-sm">
+                  <p className="font-medium text-neutral-900">{responseMs}</p>
+                  <p className="text-neutral-400">
                     {hasValidDate ? format(checkedAt, "dd MMM yyyy, HH:mm:ss") : "Check time unavailable"}
                   </p>
                 </div>
               );
-            }}
-            contentStyle={{
-              borderRadius: 8,
-              border: "1px solid oklch(92% 0.006 286)",
-              fontSize: 11,
             }}
             cursor={false}
             offset={18}
@@ -63,7 +58,7 @@ export function MonitorSparkline({ monitor }: MonitorSparklineProps): React.JSX.
               zIndex: 40,
             }}
           />
-          <Line dataKey="response_time_ms" dot={false} stroke="currentColor" strokeWidth={1.5} />
+          <Line dataKey="response_time_ms" dot={false} stroke="#a3a3a3" strokeWidth={1.5} />
         </LineChart>
       </ResponsiveContainer>
     </div>

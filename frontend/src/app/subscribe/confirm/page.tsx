@@ -75,9 +75,9 @@ export default async function ConfirmSubscriptionPage(
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             {result.ok ? (
-              <CircleCheck className="size-5 text-green-600 dark:text-green-400" />
+              <CircleCheck className="size-5 text-green-600" />
             ) : (
-              <CircleAlert className="size-5 text-red-600 dark:text-red-400" />
+              <CircleAlert className="size-5 text-red-600" />
             )}
             {result.ok ? "Subscription confirmed" : "Confirmation failed"}
           </CardTitle>

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ImpactBadge } from "@/components/status/impact-badge";
 import { IncidentStatusBadge } from "@/components/status/incident-status-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRelative } from "@/lib/dates";
@@ -16,21 +15,20 @@ export function IncidentsTable({ incidents, onResolve }: IncidentsTableProps): R
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Title</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Impact</TableHead>
-          <TableHead>Affected services</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Resolved</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+        <TableRow className="border-neutral-100">
+          <TableHead className="">Title</TableHead>
+          <TableHead className="">Status</TableHead>
+          <TableHead className="">Impact</TableHead>
+          <TableHead className="">Services</TableHead>
+          <TableHead className="">Created</TableHead>
+          <TableHead className="w-[120px]" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {incidents.map((incident) => (
-          <TableRow key={incident.id}>
+          <TableRow key={incident.id} className="border-neutral-100">
             <TableCell>
-              <Link className="font-medium hover:underline" href={`/dashboard/incidents/${incident.id}`}>
+              <Link className="text-sm font-medium text-neutral-900 hover:underline" href={`/dashboard/incidents/${incident.id}`}>
                 {incident.title}
               </Link>
             </TableCell>
@@ -41,30 +39,23 @@ export function IncidentsTable({ incidents, onResolve }: IncidentsTableProps): R
               <ImpactBadge impact={incident.impact} />
             </TableCell>
             <TableCell>
-              <div className="flex flex-wrap gap-1">
-                {incident.services.length === 0 ? (
-                  <span className="text-xs text-muted-foreground">None</span>
-                ) : (
-                  incident.services.map((service) => (
-                    <Badge key={service.id} className="bg-muted text-foreground">
-                      {service.name}
-                    </Badge>
-                  ))
-                )}
-              </div>
+              {incident.services.length === 0 ? (
+                <span className="text-xs text-neutral-400">\u2014</span>
+              ) : (
+                <span className="text-xs text-neutral-500">
+                  {incident.services.map((s) => s.name).join(", ")}
+                </span>
+              )}
             </TableCell>
-            <TableCell className="text-sm text-muted-foreground">{formatRelative(incident.created_at)}</TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {incident.resolved_at ? formatRelative(incident.resolved_at) : "-"}
-            </TableCell>
+            <TableCell className="text-xs text-neutral-400">{formatRelative(incident.created_at)}</TableCell>
             <TableCell>
               <div className="flex items-center justify-end gap-2">
                 {incident.status !== "resolved" ? (
-                  <Button onClick={() => void onResolve(incident.id)} size="sm" variant="outline">
+                  <Button className="h-7 text-xs" onClick={() => void onResolve(incident.id)} size="sm" variant="outline">
                     Resolve
                   </Button>
                 ) : null}
-                <Button asChild size="sm" variant="ghost">
+                <Button asChild className="h-7 text-xs text-neutral-500" size="sm" variant="ghost">
                   <Link href={`/dashboard/incidents/${incident.id}`}>View</Link>
                 </Button>
               </div>

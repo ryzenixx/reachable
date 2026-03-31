@@ -146,10 +146,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps): Rea
         openMobileSidebar: () => setIsMobileNavOpen(true),
       }}
     >
-      <div className="flex min-h-screen bg-background">
+      <div className="flex min-h-screen bg-white">
         <PageMeta description="Manage your Reachable workspace and live service status." title="Dashboard | Reachable" />
 
-        <div className="sticky top-0 hidden h-screen md:block">
+        <div className="sticky top-0 hidden h-screen border-r border-neutral-200/60 md:block">
           <DashboardSidebar
             isLoggingOut={logoutMutation.isPending}
             onLogout={() => {
@@ -179,7 +179,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps): Rea
           </SheetContent>
         </Sheet>
 
-        <main className="min-w-0 flex-1 px-4 py-6 md:p-8">{children}</main>
+        <main className="min-w-0 flex-1 px-8 py-8 md:px-12 md:py-10">{children}</main>
       </div>
     </DashboardShellProvider>
   );

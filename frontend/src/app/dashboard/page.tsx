@@ -44,27 +44,29 @@ export default function DashboardOverviewPage(): React.JSX.Element {
       />
       <DashboardPageHeader
         action={
-          <Button asChild>
+          <Button asChild size="sm">
             <Link href="/dashboard/services">
-              <Plus className="size-4" />
+              <Plus className="size-3.5" />
               Add service
             </Link>
           </Button>
         }
-        description="Live operational summary of your organization."
+        description="Live operational summary."
         onOpenMobileSidebar={openMobileSidebar}
         title="Overview"
       />
 
       {isLoading ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
+        <div className="space-y-8">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-28 w-full" />
+              <div key={index}>
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="mt-2 h-7 w-14" />
+              </div>
             ))}
           </div>
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-48 w-full rounded-lg" />
         </div>
       ) : services.length === 0 && monitors.length === 0 && incidents.length === 0 ? (
         <EmptyState
@@ -77,7 +79,7 @@ export default function DashboardOverviewPage(): React.JSX.Element {
           title="Your dashboard is empty"
         />
       ) : (
-        <>
+        <div className="space-y-6">
           <OverviewMetricsRow
             globalUptime={globalUptime}
             monitorsCount={activeMonitorsCount}
@@ -85,13 +87,13 @@ export default function DashboardOverviewPage(): React.JSX.Element {
             servicesCount={services.length}
           />
 
-          <div className="mb-8 grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             <OverviewServicesCard services={services} />
             <OverviewActiveIncidentsCard openIncidents={openIncidents} />
           </div>
 
           <OverviewLastChecksCard lastChecks={lastChecks} serviceNameById={serviceNameById} />
-        </>
+        </div>
       )}
     </div>
   );

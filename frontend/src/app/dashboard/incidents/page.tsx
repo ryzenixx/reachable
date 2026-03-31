@@ -70,12 +70,12 @@ export default function IncidentsPage(): React.JSX.Element {
       />
       <DashboardPageHeader
         action={
-          <Button onClick={() => setIsSheetOpen(true)}>
-            <Plus className="size-4" />
+          <Button onClick={() => setIsSheetOpen(true)} size="sm">
+            <Plus className="size-3.5" />
             Create incident
           </Button>
         }
-        description="Track incident lifecycle, affected services, and public updates."
+        description="Track incidents, affected services, and updates."
         onOpenMobileSidebar={openMobileSidebar}
         title="Incidents"
       />

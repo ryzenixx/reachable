@@ -21,10 +21,10 @@ const impactColorClassMap: Record<IncidentImpact, string> = {
 };
 
 const impactTextClassMap: Record<IncidentImpact, string> = {
-  none: "text-green-600 dark:text-green-400",
-  minor: "text-yellow-600 dark:text-yellow-400",
-  major: "text-orange-600 dark:text-orange-400",
-  critical: "text-red-600 dark:text-red-400",
+  none: "text-green-600",
+  minor: "text-yellow-600",
+  major: "text-orange-600",
+  critical: "text-red-600",
 };
 
 const impactLabelMap: Record<IncidentImpact, string> = {

@@ -63,7 +63,7 @@ export function GeneralSettingsFields({ form }: GeneralSettingsFieldsProps): Rea
             <FormControl>
               <Input placeholder="status.example.com" {...field} value={field.value ?? ""} />
             </FormControl>
-            <p className="text-xs text-muted-foreground">Used in email links. Important: set your public domain.</p>
+            <p className="text-xs text-neutral-400">Used in email links. Important: set your public domain.</p>
             <FormMessage />
           </FormItem>
         )}

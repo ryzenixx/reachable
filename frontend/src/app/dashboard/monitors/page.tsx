@@ -145,12 +145,12 @@ export default function MonitorsPage(): React.JSX.Element {
       />
       <DashboardPageHeader
         action={
-          <Button onClick={() => openCreateSheet()}>
-            <Plus className="size-4" />
+          <Button onClick={() => openCreateSheet()} size="sm">
+            <Plus className="size-3.5" />
             Add monitor
           </Button>
         }
-        description="Configure HTTP/TCP/Ping checks and review live response trends."
+        description="Configure checks and review response trends."
         onOpenMobileSidebar={openMobileSidebar}
         title="Monitors"
       />

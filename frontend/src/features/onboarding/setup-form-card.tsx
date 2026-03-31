@@ -125,7 +125,7 @@ export function SetupFormCard({
                               key={check.label}
                               className={cn(
                                 "inline-flex items-center gap-1.5",
-                                check.passed ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground",
+                                check.passed ? "text-emerald-600" : "text-muted-foreground",
                               )}
                             >
                               <Check className={cn("size-3", check.passed ? "opacity-100" : "opacity-35")} />

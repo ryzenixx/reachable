@@ -9,11 +9,11 @@ export const statusLabelMap: Record<ServiceStatus, string> = {
 };
 
 export const statusClassMap: Record<ServiceStatus, string> = {
-  operational: "bg-green-500/15 text-green-700 dark:text-green-300",
-  degraded: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
-  partial_outage: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  major_outage: "bg-red-500/15 text-red-700 dark:text-red-300",
-  maintenance: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
+  operational: "bg-green-500/15 text-green-700",
+  degraded: "bg-yellow-500/15 text-yellow-700",
+  partial_outage: "bg-orange-500/15 text-orange-700",
+  major_outage: "bg-red-500/15 text-red-700",
+  maintenance: "bg-indigo-500/15 text-indigo-700",
 };
 
 export const statusDotClassMap: Record<ServiceStatus, string> = {
@@ -32,10 +32,10 @@ export const impactLabelMap: Record<IncidentImpact, string> = {
 };
 
 export const impactClassMap: Record<IncidentImpact, string> = {
-  none: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
-  minor: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
-  major: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  critical: "bg-red-500/15 text-red-700 dark:text-red-300",
+  none: "bg-slate-500/15 text-slate-700",
+  minor: "bg-yellow-500/15 text-yellow-700",
+  major: "bg-orange-500/15 text-orange-700",
+  critical: "bg-red-500/15 text-red-700",
 };
 
 export const impactBorderClassMap: Record<IncidentImpact, string> = {
@@ -53,10 +53,10 @@ export const incidentStatusLabelMap: Record<IncidentStatus, string> = {
 };
 
 export const incidentStatusClassMap: Record<IncidentStatus, string> = {
-  investigating: "bg-red-500/15 text-red-700 dark:text-red-300",
-  identified: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  monitoring: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
-  resolved: "bg-green-500/15 text-green-700 dark:text-green-300",
+  investigating: "bg-red-500/15 text-red-700",
+  identified: "bg-orange-500/15 text-orange-700",
+  monitoring: "bg-yellow-500/15 text-yellow-700",
+  resolved: "bg-green-500/15 text-green-700",
 };
 
 export function incidentStatusToServiceStatus(status: IncidentStatus): ServiceStatus {

@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge";
-import { statusClassMap, statusLabelMap } from "@/lib/status";
+import { statusDotClassMap, statusLabelMap } from "@/lib/status";
+import { cn } from "@/lib/utils";
 import type { ServiceStatus } from "@/types/api";
 
 type StatusBadgeProps = {
@@ -7,5 +7,10 @@ type StatusBadgeProps = {
 };
 
 export function StatusBadge({ status }: StatusBadgeProps): React.JSX.Element {
-  return <Badge className={statusClassMap[status]}>{statusLabelMap[status]}</Badge>;
+  return (
+    <span className="inline-flex items-center gap-2 text-sm text-neutral-600">
+      <span className={cn("h-2 w-2 rounded-full", statusDotClassMap[status])} />
+      {statusLabelMap[status]}
+    </span>
+  );
 }

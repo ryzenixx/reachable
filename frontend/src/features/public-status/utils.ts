@@ -23,17 +23,17 @@ export type PastIncidentDay = {
 
 const incidentTitleClassMap: Record<IncidentImpact, string> = {
   none: "text-foreground",
-  minor: "text-yellow-600 dark:text-yellow-400",
-  major: "text-orange-600 dark:text-orange-400",
-  critical: "text-red-600 dark:text-red-400",
+  minor: "text-yellow-600",
+  major: "text-orange-600",
+  critical: "text-red-600",
 };
 
 const serviceStatusTextClassMap: Record<ServiceStatus, string> = {
-  operational: "text-green-600 dark:text-green-400",
-  degraded: "text-yellow-600 dark:text-yellow-400",
-  partial_outage: "text-orange-600 dark:text-orange-400",
-  major_outage: "text-red-600 dark:text-red-400",
-  maintenance: "text-indigo-600 dark:text-indigo-400",
+  operational: "text-green-600",
+  degraded: "text-yellow-600",
+  partial_outage: "text-orange-600",
+  major_outage: "text-red-600",
+  maintenance: "text-indigo-600",
 };
 
 export function serviceStatusClass(status: ServiceStatus): string {

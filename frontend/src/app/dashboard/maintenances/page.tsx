@@ -111,12 +111,12 @@ export default function MaintenancesPage(): React.JSX.Element {
       />
       <DashboardPageHeader
         action={
-          <Button onClick={openCreate}>
-            <Plus className="size-4" />
+          <Button onClick={openCreate} size="sm">
+            <Plus className="size-3.5" />
             Schedule maintenance
           </Button>
         }
-        description="Plan, update, and complete scheduled maintenance windows."
+        description="Plan and manage maintenance windows."
         onOpenMobileSidebar={openMobileSidebar}
         title="Maintenances"
       />

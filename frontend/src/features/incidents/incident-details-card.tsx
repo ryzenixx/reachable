@@ -1,7 +1,5 @@
 import { ImpactBadge } from "@/components/status/impact-badge";
 import { IncidentStatusBadge } from "@/components/status/incident-status-badge";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Incident } from "@/types/api";
 
 type IncidentDetailsCardProps = {
@@ -10,34 +8,32 @@ type IncidentDetailsCardProps = {
 
 export function IncidentDetailsCard({ incident }: IncidentDetailsCardProps): React.JSX.Element {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Incident details</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
+    <div className="rounded-xl border border-neutral-100 bg-white p-5">
+      <h3 className="text-sm font-semibold text-neutral-900">Details</h3>
+      <div className="mt-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Status</span>
+          <span className="text-sm text-neutral-500">Status</span>
           <IncidentStatusBadge status={incident.status} />
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Impact</span>
+          <span className="text-sm text-neutral-500">Impact</span>
           <ImpactBadge impact={incident.impact} />
         </div>
         <div>
-          <p className="text-muted-foreground">Affected services</p>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {incident.services.length === 0 ? (
-              <span className="text-xs text-muted-foreground">None</span>
-            ) : (
-              incident.services.map((service) => (
-                <Badge key={service.id} className="bg-muted text-foreground">
+          <span className="text-sm text-neutral-500">Services</span>
+          {incident.services.length === 0 ? (
+            <p className="mt-1 text-xs text-neutral-400">{"\u2014"}</p>
+          ) : (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {incident.services.map((service) => (
+                <span key={service.id} className="inline-flex rounded-md bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-600 border border-neutral-100">
                   {service.name}
-                </Badge>
-              ))
-            )}
-          </div>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

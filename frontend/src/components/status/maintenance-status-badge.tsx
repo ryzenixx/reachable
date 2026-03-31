@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { MaintenanceStatus } from "@/types/api";
 
 const labelMap: Record<MaintenanceStatus, string> = {
@@ -7,10 +7,10 @@ const labelMap: Record<MaintenanceStatus, string> = {
   completed: "Completed",
 };
 
-const classMap: Record<MaintenanceStatus, string> = {
-  scheduled: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-  in_progress: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
-  completed: "bg-green-500/15 text-green-700 dark:text-green-300",
+const dotClassMap: Record<MaintenanceStatus, string> = {
+  scheduled: "bg-indigo-500",
+  in_progress: "bg-yellow-500",
+  completed: "bg-green-500",
 };
 
 type MaintenanceStatusBadgeProps = {
@@ -18,5 +18,10 @@ type MaintenanceStatusBadgeProps = {
 };
 
 export function MaintenanceStatusBadge({ status }: MaintenanceStatusBadgeProps): React.JSX.Element {
-  return <Badge className={classMap[status]}>{labelMap[status]}</Badge>;
+  return (
+    <span className="inline-flex items-center gap-2 text-sm text-neutral-600">
+      <span className={cn("h-2 w-2 rounded-full", dotClassMap[status])} />
+      {labelMap[status]}
+    </span>
+  );
 }
