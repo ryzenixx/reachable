@@ -30,6 +30,25 @@ class UpdateOrganizationSettingsAction
             }
         }
 
+        if (array_key_exists('hcaptcha_secret', $payload)) {
+            $hcaptchaSecret = is_string($payload['hcaptcha_secret']) ? trim($payload['hcaptcha_secret']) : '';
+
+            if ($hcaptchaSecret === '') {
+                unset($payload['hcaptcha_secret']);
+            } else {
+                $payload['hcaptcha_secret'] = $hcaptchaSecret;
+            }
+        }
+
+        if (array_key_exists('hcaptcha_sitekey', $payload)) {
+            $sitekey = is_string($payload['hcaptcha_sitekey']) ? trim($payload['hcaptcha_sitekey']) : '';
+            $payload['hcaptcha_sitekey'] = $sitekey === '' ? null : $sitekey;
+
+            if ($sitekey === '') {
+                $payload['hcaptcha_secret'] = null;
+            }
+        }
+
         $organization->fill($payload);
         $organization->save();
 

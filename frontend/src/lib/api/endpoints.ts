@@ -212,11 +212,11 @@ export const api = {
     return request<PublicIncidentPayload>({ method: "GET", url: `/public/incidents/${incidentId}` });
   },
 
-  subscribe(email: string): Promise<{ message: string; subscriber_id: string }> {
+  subscribe(email: string, captchaToken?: string): Promise<{ message: string; subscriber_id: string }> {
     return request<{ message: string; subscriber_id: string }>({
       method: "POST",
       url: "/public/subscribe",
-      data: { email },
+      data: { email, ...(captchaToken ? { captcha_token: captchaToken } : {}) },
     });
   },
 };

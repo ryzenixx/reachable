@@ -39,6 +39,8 @@ export type Organization = {
   smtp_from_address?: string | null;
   smtp_from_name?: string | null;
   smtp_password_set?: boolean;
+  hcaptcha_sitekey?: string | null;
+  hcaptcha_secret_set?: boolean;
   created_at?: string;
   updated_at?: string;
 };

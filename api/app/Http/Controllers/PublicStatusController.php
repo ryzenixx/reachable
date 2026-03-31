@@ -16,6 +16,7 @@ use App\Models\Subscriber;
 use App\Services\Status\PublicStatusPageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class PublicStatusController extends Controller
 {
@@ -82,6 +83,16 @@ class PublicStatusController extends Controller
             ], 409);
         }
 
+        if ($this->organizationRequiresCaptcha($organization)) {
+            $captchaToken = $request->input('captcha_token', '');
+
+            if (! $this->verifyCaptcha($organization->hcaptcha_secret, $captchaToken)) {
+                return response()->json([
+                    'message' => 'Captcha verification failed.',
+                ], 422);
+            }
+        }
+
         $subscriber = $this->createSubscriberAction->execute(
             organization: $organization,
             email: $request->validated('email'),
@@ -127,6 +138,32 @@ class PublicStatusController extends Controller
         $subscriber->delete();
 
         return response()->json(['message' => 'You have been unsubscribed.']);
+    }
+
+    private function organizationRequiresCaptcha(Organization $organization): bool
+    {
+        return is_string($organization->hcaptcha_sitekey)
+            && mb_strlen($organization->hcaptcha_sitekey) > 0
+            && is_string($organization->hcaptcha_secret)
+            && mb_strlen($organization->hcaptcha_secret) > 0;
+    }
+
+    private function verifyCaptcha(string $secret, mixed $token): bool
+    {
+        if (! is_string($token) || $token === '') {
+            return false;
+        }
+
+        try {
+            $response = Http::asForm()->post('https://api.hcaptcha.com/siteverify', [
+                'secret' => $secret,
+                'response' => $token,
+            ]);
+
+            return $response->ok() && $response->json('success') === true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function resolveOrganization(): Organization

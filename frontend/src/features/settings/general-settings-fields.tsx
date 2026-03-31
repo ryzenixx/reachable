@@ -68,6 +68,46 @@ export function GeneralSettingsFields({ form }: GeneralSettingsFieldsProps): Rea
           </FormItem>
         )}
       />
+
+      <div className="pt-4 border-t border-neutral-100">
+        <p className="text-sm font-medium text-neutral-900 mb-3">hCaptcha</p>
+        <p className="text-xs text-neutral-400 mb-4">Protect the subscribe form from bots. Leave empty to disable.</p>
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="hcaptcha_sitekey"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Site key</FormLabel>
+                <FormControl>
+                  <Input placeholder="10000000-ffff-ffff-ffff-000000000001" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="hcaptcha_secret"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Secret key</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter hCaptcha secret key"
+                    type="password"
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <p className="text-xs text-neutral-400">Leave blank to keep the existing secret.</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
     </>
   );
 }

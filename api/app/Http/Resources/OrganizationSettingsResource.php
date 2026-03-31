@@ -28,6 +28,8 @@ class OrganizationSettingsResource extends JsonResource
             'smtp_from_address' => $this->smtp_from_address,
             'smtp_from_name' => $this->smtp_from_name,
             'smtp_password_set' => is_string($this->smtp_password) && mb_strlen($this->smtp_password) > 0,
+            'hcaptcha_sitekey' => $this->hcaptcha_sitekey,
+            'hcaptcha_secret_set' => is_string($this->hcaptcha_secret) && mb_strlen($this->hcaptcha_secret) > 0,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

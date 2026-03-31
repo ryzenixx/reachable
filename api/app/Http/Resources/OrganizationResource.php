@@ -21,6 +21,7 @@ class OrganizationResource extends JsonResource
             'banner_url' => $this->banner_url,
             'custom_domain' => $this->custom_domain,
             'smtp_enabled' => (bool) $this->smtp_enabled,
+            'hcaptcha_sitekey' => $this->hcaptcha_sitekey,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

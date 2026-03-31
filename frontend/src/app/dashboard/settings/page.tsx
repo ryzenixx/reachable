@@ -49,6 +49,8 @@ const SETTINGS_DEFAULT_VALUES: SettingsValues = {
   smtp_encryption: "tls",
   smtp_from_address: "",
   smtp_from_name: "",
+  hcaptcha_sitekey: "",
+  hcaptcha_secret: "",
 };
 
 export default function SettingsPage(): React.JSX.Element {
@@ -139,6 +141,8 @@ export default function SettingsPage(): React.JSX.Element {
       smtp_encryption: organization.smtp_encryption ?? "tls",
       smtp_from_address: organization.smtp_from_address ?? "",
       smtp_from_name: organization.smtp_from_name ?? organization.name,
+      hcaptcha_sitekey: organization.hcaptcha_sitekey ?? "",
+      hcaptcha_secret: "",
     });
   }, [form, organization]);
 

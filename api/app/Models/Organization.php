@@ -37,6 +37,8 @@ class Organization extends Model
         'smtp_encryption',
         'smtp_from_address',
         'smtp_from_name',
+        'hcaptcha_sitekey',
+        'hcaptcha_secret',
     ];
 
     /**
@@ -44,6 +46,7 @@ class Organization extends Model
      */
     protected $hidden = [
         'smtp_password',
+        'hcaptcha_secret',
     ];
 
     /**

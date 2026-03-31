@@ -18,7 +18,7 @@ export function PublicStatusHeader({ organization }: PublicStatusHeaderProps): R
         ) : null}
         <h1 className="text-base font-semibold leading-none">{organization.name}</h1>
       </div>
-      <SubscribeDialog isEnabled={organization.smtp_enabled !== false} />
+      <SubscribeDialog isEnabled={organization.smtp_enabled !== false} hcaptchaSitekey={organization.hcaptcha_sitekey} />
     </header>
   );
 }

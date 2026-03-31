@@ -45,6 +45,8 @@ export function normalizeSettingsFormValues(values: Partial<SettingsValues>, org
     smtp_encryption: values.smtp_encryption ?? organization?.smtp_encryption ?? "tls",
     smtp_from_address: values.smtp_from_address ?? organization?.smtp_from_address ?? "",
     smtp_from_name: values.smtp_from_name ?? organization?.smtp_from_name ?? organization?.name ?? "",
+    hcaptcha_sitekey: values.hcaptcha_sitekey ?? organization?.hcaptcha_sitekey ?? "",
+    hcaptcha_secret: values.hcaptcha_secret ?? "",
   };
 }
 

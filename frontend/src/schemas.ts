@@ -125,6 +125,8 @@ export const settingsSchema = z.object({
   smtp_encryption: z.enum(["none", "tls", "ssl"]).nullable().optional(),
   smtp_from_address: z.string().email("Enter a valid sender email.").max(255).nullable().optional().or(z.literal("")),
   smtp_from_name: z.string().max(255).nullable().optional().or(z.literal("")),
+  hcaptcha_sitekey: z.string().max(255).nullable().optional().or(z.literal("")),
+  hcaptcha_secret: z.string().max(255).nullable().optional().or(z.literal("")),
 }).superRefine((value, ctx) => {
   if (value.smtp_enabled !== "enabled") {
     return;

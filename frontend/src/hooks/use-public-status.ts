@@ -26,9 +26,9 @@ export function usePublicIncident(incidentId: string) {
 
 export function useSubscribe() {
   return useMutation({
-    mutationFn: async (email: string): Promise<{ message: string; subscriber_id: string }> => {
+    mutationFn: async ({ email, captchaToken }: { email: string; captchaToken?: string }): Promise<{ message: string; subscriber_id: string }> => {
       const payload = subscriberSchema.parse({ email });
-      return api.subscribe(payload.email);
+      return api.subscribe(payload.email, captchaToken);
     },
   });
 }

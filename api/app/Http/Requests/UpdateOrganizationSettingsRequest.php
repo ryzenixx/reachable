@@ -58,6 +58,8 @@ class UpdateOrganizationSettingsRequest extends FormRequest
                 Rule::requiredIf($this->boolean('smtp_enabled')),
             ],
             'smtp_from_name' => ['nullable', 'string', 'max:255'],
+            'hcaptcha_sitekey' => ['nullable', 'string', 'max:255'],
+            'hcaptcha_secret' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

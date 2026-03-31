@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,13 +23,17 @@ import { subscriberSchema, type SubscriberValues } from "@/schemas";
 
 type SubscribeDialogProps = {
   isEnabled?: boolean;
+  hcaptchaSitekey?: string | null;
 };
 
-export function SubscribeDialog({ isEnabled = true }: SubscribeDialogProps): React.JSX.Element {
+export function SubscribeDialog({ isEnabled = true, hcaptchaSitekey }: SubscribeDialogProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha | null>(null);
 
   const subscribeMutation = useSubscribe();
+  const requiresCaptcha = Boolean(hcaptchaSitekey);
 
   const form = useForm<SubscriberValues>({
     resolver: zodResolver(subscriberSchema),
@@ -57,6 +62,8 @@ export function SubscribeDialog({ isEnabled = true }: SubscribeDialogProps): Rea
         setIsOpen(open);
         if (!open) {
           setSubmitted(false);
+          setCaptchaToken(null);
+          captchaRef.current?.resetCaptcha();
           form.reset();
         }
       }}
@@ -74,12 +81,12 @@ export function SubscribeDialog({ isEnabled = true }: SubscribeDialogProps): Rea
         </DialogHeader>
 
         {submitted ? (
-          <div className="space-y-3 rounded-lg border bg-muted/50 p-4 text-sm">
-            <div className="flex items-center gap-2 font-medium text-foreground">
+          <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm">
+            <div className="flex items-center gap-2 font-medium text-neutral-900">
               <CheckCircle2 className="size-4 text-green-600" />
               Confirmation sent
             </div>
-            <p className="text-muted-foreground">Check your inbox and click the confirmation link to finish subscribing.</p>
+            <p className="text-neutral-500">Check your inbox and click the confirmation link to finish subscribing.</p>
             <Button
               className="w-full"
               onClick={() => {
@@ -95,11 +102,21 @@ export function SubscribeDialog({ isEnabled = true }: SubscribeDialogProps): Rea
             <form
               className="space-y-4"
               onSubmit={form.handleSubmit(async (values) => {
+                if (requiresCaptcha && !captchaToken) {
+                  toast.error("Please complete the captcha.");
+                  return;
+                }
+
                 try {
-                  await subscribeMutation.mutateAsync(values.email);
+                  await subscribeMutation.mutateAsync({
+                    email: values.email,
+                    captchaToken: captchaToken ?? undefined,
+                  });
                   toast.success("Confirmation email sent.");
                   setSubmitted(true);
                 } catch (error) {
+                  captchaRef.current?.resetCaptcha();
+                  setCaptchaToken(null);
                   toastApiError(error, "Unable to subscribe right now.");
                 }
               })}
@@ -118,7 +135,16 @@ export function SubscribeDialog({ isEnabled = true }: SubscribeDialogProps): Rea
                 )}
               />
 
-              <Button className="w-full" disabled={subscribeMutation.isPending} type="submit">
+              {requiresCaptcha && hcaptchaSitekey ? (
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey={hcaptchaSitekey}
+                  onVerify={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                />
+              ) : null}
+
+              <Button className="w-full" disabled={subscribeMutation.isPending || (requiresCaptcha && !captchaToken)} type="submit">
                 {subscribeMutation.isPending ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="size-4 animate-spin" />
