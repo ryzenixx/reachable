@@ -13,7 +13,7 @@ class CheckTokenAbility
 {
     /**
      * Enforce token abilities only on real persisted personal access tokens.
-     * Transient tokens, mocks (tests), and session auth are allowed through.
+     * Transient tokens, mocks (Sanctum::actingAs in tests), and session auth pass through.
      */
     public function handle(Request $request, Closure $next, string ...$abilities): Response
     {
@@ -25,7 +25,8 @@ class CheckTokenAbility
 
         $token = $user->currentAccessToken();
 
-        if (! $token instanceof PersonalAccessToken || $token->getKey() === null) {
+        // Only enforce on real persisted tokens — not mocks or transient tokens
+        if (! $token instanceof PersonalAccessToken || get_class($token) !== PersonalAccessToken::class) {
             return $next($request);
         }
 
