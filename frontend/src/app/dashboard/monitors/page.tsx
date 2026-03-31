@@ -35,6 +35,7 @@ function defaultValues(serviceId?: string): MonitorValues {
     timeout_ms: 5000,
     expected_status_code: 200,
     is_active: true,
+    verify_ssl: true,
   };
 }
 
@@ -98,6 +99,7 @@ export default function MonitorsPage(): React.JSX.Element {
       timeout_ms: monitor.timeout_ms,
       expected_status_code: monitor.expected_status_code,
       is_active: monitor.is_active,
+      verify_ssl: monitor.verify_ssl ?? true,
     });
     setIsSheetOpen(true);
   }

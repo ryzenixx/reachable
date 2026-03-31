@@ -61,6 +61,7 @@ export const monitorSchema = z
       .min(100, "Expected status code must be between 100 and 599.")
       .max(599, "Expected status code must be between 100 and 599."),
     is_active: z.boolean(),
+    verify_ssl: z.boolean(),
   })
   .superRefine((value, ctx) => {
     if (value.type === "http") {

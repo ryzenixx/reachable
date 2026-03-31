@@ -37,6 +37,7 @@ class Monitor extends Model
         'timeout_ms',
         'expected_status_code',
         'is_active',
+        'verify_ssl',
     ];
 
     /**
@@ -51,6 +52,7 @@ class Monitor extends Model
             'timeout_ms' => 'integer',
             'expected_status_code' => 'integer',
             'is_active' => 'boolean',
+            'verify_ssl' => 'boolean',
         ];
     }
 

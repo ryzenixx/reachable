@@ -67,7 +67,7 @@ class MonitorExecutionService
         try {
             $response = Http::timeout(max(1, $monitor->timeout_ms / 1000))
                 ->withoutRedirecting()
-                ->withOptions(['verify' => false])
+                ->withOptions(['verify' => (bool) $monitor->verify_ssl])
                 ->send($monitor->method->value, $targetUrl);
 
             $responseTimeMs = (int) round((microtime(true) - $startedAt) * 1000);

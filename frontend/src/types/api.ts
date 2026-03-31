@@ -71,6 +71,7 @@ export type Monitor = {
   timeout_ms: number;
   expected_status_code: number;
   is_active: boolean;
+  verify_ssl: boolean;
   latest_check: MonitorCheck | null;
   checks: MonitorCheck[];
   created_at: string;

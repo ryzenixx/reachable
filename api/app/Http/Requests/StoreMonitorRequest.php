@@ -32,6 +32,7 @@ class StoreMonitorRequest extends FormRequest
             'timeout_ms' => ['nullable', 'integer', 'min:100', 'max:60000'],
             'expected_status_code' => ['nullable', 'integer', 'min:100', 'max:599'],
             'is_active' => ['nullable', 'boolean'],
+            'verify_ssl' => ['nullable', 'boolean'],
         ];
     }
 }

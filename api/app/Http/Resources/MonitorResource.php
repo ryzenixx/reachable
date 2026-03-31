@@ -24,6 +24,7 @@ class MonitorResource extends JsonResource
             'timeout_ms' => $this->timeout_ms,
             'expected_status_code' => $this->expected_status_code,
             'is_active' => $this->is_active,
+            'verify_ssl' => $this->verify_ssl,
             'latest_check' => new MonitorCheckResource($this->whenLoaded('latestCheck')),
             'checks' => MonitorCheckResource::collection($this->whenLoaded('checks')),
             'created_at' => $this->created_at,

@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { UptimeBars } from "@/components/status/uptime-bars";
 import { Card, CardContent } from "@/components/ui/card";
 import { statusLabelMap } from "@/lib/status";
@@ -25,8 +26,16 @@ export function ServicesSection({ incidentsForUptime, activeIncidents, services 
             services.map((service) => (
               <div key={service.id} className="border-b px-4 py-4 last:border-0 sm:px-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <p className="truncate text-sm font-semibold">{service.name}</p>
+                    {service.description ? (
+                      <span className="group relative">
+                        <Info className="size-3.5 text-neutral-400 cursor-help" />
+                        <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                          {service.description}
+                        </span>
+                      </span>
+                    ) : null}
                   </div>
                   <p className={cn("shrink-0 text-sm font-medium", serviceStatusClass(service.status))}>
                     {statusLabelMap[service.status]}

@@ -49,6 +49,7 @@ export type CreateMonitorPayload = {
   timeout_ms: number;
   expected_status_code: number;
   is_active: boolean;
+  verify_ssl: boolean;
 };
 
 export type UpdateMonitorPayload = Partial<CreateMonitorPayload>;

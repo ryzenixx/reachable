@@ -214,24 +214,46 @@ export function MonitorFormSheet({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="is_active"
-              render={({ field }) => (
-                <FormItem>
-                  <label className="inline-flex items-center gap-2 text-sm font-medium">
-                    <input
-                      checked={field.value}
-                      className="size-4 rounded border"
-                      onChange={(event) => field.onChange(event.target.checked)}
-                      type="checkbox"
-                    />
-                    Monitor is active
-                  </label>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-3">
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem>
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-neutral-700">
+                      <input
+                        checked={field.value}
+                        className="size-4 rounded border border-neutral-300"
+                        onChange={(event) => field.onChange(event.target.checked)}
+                        type="checkbox"
+                      />
+                      Monitor is active
+                    </label>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="verify_ssl"
+                render={({ field }) => (
+                  <FormItem className="space-y-0">
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-neutral-700">
+                      <input
+                        checked={field.value}
+                        className="size-4 rounded border border-neutral-300"
+                        onChange={(event) => field.onChange(event.target.checked)}
+                        type="checkbox"
+                      />
+                      Verify SSL certificate
+                    </label>
+                    <p className="ml-6 text-xs text-neutral-400">Disable for self-signed certificates on private networks.</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <SheetFooter>
               <Button disabled={isSubmitting} type="submit">

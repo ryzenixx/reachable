@@ -35,6 +35,7 @@ class UpdateMonitorRequest extends FormRequest
             'timeout_ms' => ['sometimes', 'integer', 'min:100', 'max:60000'],
             'expected_status_code' => ['sometimes', 'integer', 'min:100', 'max:599'],
             'is_active' => ['sometimes', 'boolean'],
+            'verify_ssl' => ['sometimes', 'boolean'],
         ];
     }
 }
