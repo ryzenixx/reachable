@@ -29,7 +29,12 @@ class UpdateOrganizationSettingsRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'logo_url' => ['nullable', 'url', 'max:2048'],
             'banner_url' => ['nullable', 'url', 'max:2048'],
-            'custom_domain' => ['nullable', 'string', 'max:255'],
+            'custom_domain' => [
+                'nullable',
+                'string',
+                'max:255',
+                'regex:/^(?:[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i',
+            ],
             'smtp_enabled' => ['required', 'boolean'],
             'smtp_host' => [
                 'nullable',
