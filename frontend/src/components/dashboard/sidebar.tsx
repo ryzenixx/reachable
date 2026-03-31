@@ -13,9 +13,6 @@ import {
   Wrench,
 } from "lucide-react";
 import { OrganizationAvatar } from "@/components/app/organization-avatar";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useSystemVersion } from "@/hooks/dashboard/system";
 import { cn } from "@/lib/utils";
 
 type DashboardNavItem = {
@@ -51,8 +48,6 @@ export function DashboardSidebar({
   isLoggingOut = false,
 }: DashboardSidebarProps): React.JSX.Element {
   const pathname = usePathname();
-  const isDev = process.env.NODE_ENV === "development";
-  const systemVersionQuery = useSystemVersion({ enabled: !isDev });
 
   function isNavItemActive(href: string): boolean {
     if (href === "/dashboard") {
@@ -108,22 +103,6 @@ export function DashboardSidebar({
         </div>
       </nav>
 
-      {!isDev && (
-        <div className="px-5 pb-3">
-          {systemVersionQuery.isPending ? (
-            <Skeleton className="h-4 w-16" />
-          ) : systemVersionQuery.data ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-400">v{systemVersionQuery.data.current_version}</span>
-              {systemVersionQuery.data.update_available && (
-                <Badge className="h-4 rounded px-1.5 text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-50">
-                  Update
-                </Badge>
-              )}
-            </div>
-          ) : null}
-        </div>
-      )}
 
       <div className="mx-3 mb-4 mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200/80 text-xs font-semibold text-neutral-600">
