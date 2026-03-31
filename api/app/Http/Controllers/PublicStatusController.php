@@ -114,8 +114,13 @@ class PublicStatusController extends Controller
 
     public function unsubscribe(string $token): JsonResponse
     {
+        $organization = $this->resolveOrganization();
+
         /** @var Subscriber|null $subscriber */
-        $subscriber = Subscriber::query()->where('token', $token)->first();
+        $subscriber = Subscriber::query()
+            ->where('organization_id', $organization->id)
+            ->where('token', $token)
+            ->first();
 
         abort_if(! $subscriber instanceof Subscriber, 404, 'This unsubscribe link is invalid or already used.');
 
