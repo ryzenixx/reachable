@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Onboarding\OnboardingStateService;
 use Illuminate\Http\JsonResponse;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Cookie;
 
 class OnboardingController extends Controller
 {
@@ -46,6 +47,18 @@ class OnboardingController extends Controller
         /** @var User $user */
         $user = $result['user'];
 
+        $secure = str_starts_with((string) config('app.url', ''), 'https://');
+
+        $cookie = new Cookie(
+            name: 'reachable_session',
+            value: $result['token'],
+            expire: now()->addMinutes(10080),
+            path: '/',
+            secure: $secure,
+            httpOnly: true,
+            sameSite: $secure ? 'None' : 'Lax',
+        );
+
         return response()->json([
             'token' => $result['token'],
             'user' => [
@@ -55,6 +68,6 @@ class OnboardingController extends Controller
                 'role' => $user->role->value,
                 'organization' => new OrganizationResource($user->organization),
             ],
-        ], 201);
+        ], 201)->withCookie($cookie);
     }
 }

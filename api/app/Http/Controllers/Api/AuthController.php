@@ -13,9 +13,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Cookie;
 
 class AuthController extends Controller
 {
+    private const COOKIE_NAME = 'reachable_session';
+
+    private const COOKIE_TTL_MINUTES = 10080;
+
     public function __construct(private readonly CreateApiTokenAction $createApiTokenAction) {}
 
     /**
@@ -39,7 +44,7 @@ class AuthController extends Controller
             name: $data['device_name'] ?? 'dashboard',
         );
 
-        return response()->json([
+        $response = response()->json([
             'token' => $token->plainTextToken,
             'user' => [
                 'id' => $user->id,
@@ -49,6 +54,10 @@ class AuthController extends Controller
                 'organization' => new OrganizationResource($user->organization),
             ],
         ]);
+
+        $response->withCookie($this->makeAuthCookie($token->plainTextToken));
+
+        return $response;
     }
 
     public function me(Request $request): JsonResponse
@@ -72,7 +81,9 @@ class AuthController extends Controller
 
         $user->currentAccessToken()?->delete();
 
-        return response()->json(['message' => 'Logged out successfully.']);
+        return response()
+            ->json(['message' => 'Logged out successfully.'])
+            ->withCookie($this->forgetAuthCookie());
     }
 
     public function logoutAll(Request $request): JsonResponse
@@ -82,6 +93,45 @@ class AuthController extends Controller
 
         $user->tokens()->delete();
 
-        return response()->json(['message' => 'All sessions revoked.']);
+        return response()
+            ->json(['message' => 'All sessions revoked.'])
+            ->withCookie($this->forgetAuthCookie());
+    }
+
+    private function makeAuthCookie(string $token): Cookie
+    {
+        $secure = $this->isSecure();
+
+        return new Cookie(
+            name: self::COOKIE_NAME,
+            value: $token,
+            expire: now()->addMinutes(self::COOKIE_TTL_MINUTES),
+            path: '/',
+            secure: $secure,
+            httpOnly: true,
+            sameSite: $secure ? 'None' : 'Lax',
+        );
+    }
+
+    private function forgetAuthCookie(): Cookie
+    {
+        $secure = $this->isSecure();
+
+        return new Cookie(
+            name: self::COOKIE_NAME,
+            value: '',
+            expire: now()->subYear(),
+            path: '/',
+            secure: $secure,
+            httpOnly: true,
+            sameSite: $secure ? 'None' : 'Lax',
+        );
+    }
+
+    private function isSecure(): bool
+    {
+        $appUrl = (string) config('app.url', '');
+
+        return str_starts_with($appUrl, 'https://');
     }
 }

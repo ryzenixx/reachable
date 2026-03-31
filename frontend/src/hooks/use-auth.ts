@@ -1,17 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, setApiToken } from "@/lib/api";
-import { clearAuthToken, readAuthToken, writeAuthToken } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { loginSchema, type LoginValues } from "@/schemas";
 import type { AuthUser } from "@/types/api";
 
 export function useBootstrapAuth(): boolean {
-  return useMemo(() => {
-    setApiToken(readAuthToken());
-    return true;
-  }, []);
+  return true;
 }
 
 export function useLogin() {
@@ -23,8 +18,6 @@ export function useLogin() {
       return api.login(payload);
     },
     onSuccess: async (result) => {
-      writeAuthToken(result.token);
-      setApiToken(result.token);
       queryClient.setQueryData<AuthUser | null>(["auth", "me"], result.user);
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
@@ -48,8 +41,6 @@ export function useLogout() {
   return useMutation({
     mutationFn: async (): Promise<void> => {
       await queryClient.cancelQueries({ queryKey: ["auth", "me"] });
-      clearAuthToken();
-      setApiToken(null);
       queryClient.setQueryData<AuthUser | null>(["auth", "me"], null);
       void api.logout().catch(() => undefined);
     },

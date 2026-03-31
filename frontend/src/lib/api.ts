@@ -1,5 +1,5 @@
 export { api } from "@/lib/api/endpoints";
-export { apiClient, onNetworkError, onNetworkRecovered, setApiToken } from "@/lib/api/client";
+export { apiClient, onNetworkError, onNetworkRecovered } from "@/lib/api/client";
 export { ApiError, isApiError } from "@/lib/api/errors";
 export type {
   BootstrapOnboardingResponse,

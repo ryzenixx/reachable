@@ -44,6 +44,7 @@ function resolveBrowserAwareApiBaseUrl(configuredUrl: string): string {
 
 export const apiClient = axios.create({
   baseURL: resolveBrowserAwareApiBaseUrl(env.NEXT_PUBLIC_API_URL),
+  withCredentials: true,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",

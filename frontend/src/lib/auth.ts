@@ -1,25 +1,6 @@
-const TOKEN_KEY = "reachable_token";
-
-export function readAuthToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-
-export function writeAuthToken(token: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(TOKEN_KEY, token);
-}
+// Auth is handled via httpOnly cookies set by the API.
+// This file only exports clearAuthToken for the org deletion flow.
 
 export function clearAuthToken(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(TOKEN_KEY);
+  // No-op — cookie is invalidated server-side on logout/deletion
 }

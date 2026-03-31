@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, setApiToken } from "@/lib/api";
-import { writeAuthToken } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { onboardingSchema, type OnboardingValues } from "@/schemas";
 import type { AuthUser, OnboardingState } from "@/types/api";
 
@@ -25,12 +24,7 @@ export function useBootstrapOnboarding() {
       const { confirm_password, ...payload } = parsed;
       void confirm_password;
 
-      const result = await api.bootstrapOnboarding(payload);
-
-      writeAuthToken(result.token);
-      setApiToken(result.token);
-
-      return result;
+      return api.bootstrapOnboarding(payload);
     },
     onSuccess: async (result) => {
       queryClient.setQueryData<AuthUser | null>(["auth", "me"], result.user);

@@ -1,1 +1,1 @@
-export { apiClient, setApiToken } from "@/lib/api";
+export { apiClient } from "@/lib/api";
