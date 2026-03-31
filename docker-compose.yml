@@ -1,6 +1,6 @@
 services:
   reachable:
-    image: ghcr.io/ryzenixx/reachable:latest
+    image: ghcr.io/reachableapps/reachable:latest
     pull_policy: always
     container_name: reachable
     restart: unless-stopped

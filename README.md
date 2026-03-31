@@ -12,10 +12,10 @@
 
 Free. Blazing-fast. Self-hostable.
 
-![LICENCE](https://img.shields.io/github/license/ryzenixx/reachable?style=flat)
-![ISSUES](https://img.shields.io/github/issues/ryzenixx/reachable?style=flat)
-![STARS](https://img.shields.io/github/stars/ryzenixx/reachable?style=flat)
-![WATCHERS](https://img.shields.io/github/watchers/ryzenixx/reachable?style=flat)
+![LICENCE](https://img.shields.io/github/license/reachableapps/reachable?style=flat)
+![ISSUES](https://img.shields.io/github/issues/reachableapps/reachable?style=flat)
+![STARS](https://img.shields.io/github/stars/reachableapps/reachable?style=flat)
+![WATCHERS](https://img.shields.io/github/watchers/reachableapps/reachable?style=flat)
 
 [Quick Start](#quick-start) • [Screenshots](#screenshots) • [Configuration](#configuration)
 
@@ -32,7 +32,7 @@ Reachable gives you a polished public status page and an operations dashboard in
 ## Quick Start
 
 ```bash
-git clone https://github.com/ryzenixx/reachable.git
+git clone https://github.com/reachableapps/reachable.git
 cd reachable
 docker compose up -d
 ```

@@ -15,13 +15,13 @@ uses(RefreshDatabase::class);
 it('returns current and latest versions for authenticated users', function (): void {
     Config::set('version.current', '1.0.0');
     Config::set('version.update_check.enabled', true);
-    Config::set('version.update_check.repository', 'ryzenixx/reachable');
+    Config::set('version.update_check.repository', 'reachableapps/reachable');
     Config::set('version.update_check.cache_ttl_seconds', 60);
 
     Http::fake([
-        'https://api.github.com/repos/ryzenixx/reachable/releases/latest' => Http::response([
+        'https://api.github.com/repos/reachableapps/reachable/releases/latest' => Http::response([
             'tag_name' => 'v1.1.0',
-            'html_url' => 'https://github.com/ryzenixx/reachable/releases/tag/v1.1.0',
+            'html_url' => 'https://github.com/reachableapps/reachable/releases/tag/v1.1.0',
         ], 200),
     ]);
 
@@ -36,7 +36,7 @@ it('returns current and latest versions for authenticated users', function (): v
         ->assertOk()
         ->assertJsonPath('data.current_version', '1.0.0')
         ->assertJsonPath('data.latest_version', '1.1.0')
-        ->assertJsonPath('data.latest_release_url', 'https://github.com/ryzenixx/reachable/releases/tag/v1.1.0')
+        ->assertJsonPath('data.latest_release_url', 'https://github.com/reachableapps/reachable/releases/tag/v1.1.0')
         ->assertJsonPath('data.update_available', true)
         ->assertJsonPath('data.update_check_enabled', true);
 

@@ -89,7 +89,7 @@ export function StatusPageClient(): React.JSX.Element {
               Powered by{" "}
               <a
                 className="font-medium text-foreground/85 underline underline-offset-2"
-                href="https://github.com/ryzenixx/reachable"
+                href="https://github.com/reachableapps/reachable"
                 rel="noreferrer"
                 target="_blank"
               >
