@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ export function SubscribeDialog({ isEnabled = true, hcaptchaSitekey }: Subscribe
   const [isOpen, setIsOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const captchaRef = useRef<HCaptcha | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   const subscribeMutation = useSubscribe();
   const requiresCaptcha = Boolean(hcaptchaSitekey);
@@ -41,6 +41,26 @@ export function SubscribeDialog({ isEnabled = true, hcaptchaSitekey }: Subscribe
       email: "",
     },
   });
+
+  async function handleSubmit(values: SubscriberValues): Promise<void> {
+    if (requiresCaptcha && !captchaToken) {
+      toast.error("Please complete the captcha.");
+      return;
+    }
+
+    try {
+      await subscribeMutation.mutateAsync({
+        email: values.email,
+        captchaToken: captchaToken ?? undefined,
+      });
+      toast.success("Confirmation email sent.");
+      setSubmitted(true);
+    } catch (error) {
+      setCaptchaToken(null);
+      setCaptchaKey((k) => k + 1);
+      toastApiError(error, "Unable to subscribe right now.");
+    }
+  }
 
   if (!isEnabled) {
     return (
@@ -63,7 +83,7 @@ export function SubscribeDialog({ isEnabled = true, hcaptchaSitekey }: Subscribe
         if (!open) {
           setSubmitted(false);
           setCaptchaToken(null);
-          captchaRef.current?.resetCaptcha();
+          setCaptchaKey((k) => k + 1);
           form.reset();
         }
       }}
@@ -101,25 +121,7 @@ export function SubscribeDialog({ isEnabled = true, hcaptchaSitekey }: Subscribe
           <Form {...form}>
             <form
               className="space-y-4"
-              onSubmit={form.handleSubmit(async (values) => {
-                if (requiresCaptcha && !captchaToken) {
-                  toast.error("Please complete the captcha.");
-                  return;
-                }
-
-                try {
-                  await subscribeMutation.mutateAsync({
-                    email: values.email,
-                    captchaToken: captchaToken ?? undefined,
-                  });
-                  toast.success("Confirmation email sent.");
-                  setSubmitted(true);
-                } catch (error) {
-                  captchaRef.current?.resetCaptcha();
-                  setCaptchaToken(null);
-                  toastApiError(error, "Unable to subscribe right now.");
-                }
-              })}
+              onSubmit={form.handleSubmit(handleSubmit)}
             >
               <FormField
                 control={form.control}
@@ -137,7 +139,7 @@ export function SubscribeDialog({ isEnabled = true, hcaptchaSitekey }: Subscribe
 
               {requiresCaptcha && hcaptchaSitekey ? (
                 <HCaptcha
-                  ref={captchaRef}
+                  key={captchaKey}
                   sitekey={hcaptchaSitekey}
                   onVerify={(token) => setCaptchaToken(token)}
                   onExpire={() => setCaptchaToken(null)}
