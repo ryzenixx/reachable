@@ -84,19 +84,14 @@ export function StatusPageClient(): React.JSX.Element {
         <PastIncidentsSection days={pastIncidentDays} />
 
         <footer className="mb-4 mt-10 border-t border-border/80 pt-4">
-          <div className="text-[11px] leading-none text-muted-foreground">
-            <span className="tracking-wide">
-              Powered by{" "}
-              <a
-                className="font-medium text-foreground/85 underline underline-offset-2"
-                href="https://github.com/reachableapps/reachable"
-                rel="noreferrer"
-                target="_blank"
-              >
-                Reachable
-              </a>
-            </span>
-          </div>
+          <a
+            href="https://github.com/reachableapps/reachable"
+            rel="noreferrer"
+            target="_blank"
+            className="inline-block opacity-50 transition-opacity hover:opacity-100"
+          >
+            <img src="/reachable_logo.png" alt="Powered by Reachable" className="h-5" />
+          </a>
         </footer>
       </main>
     </>
