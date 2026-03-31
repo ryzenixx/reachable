@@ -1,53 +1,42 @@
 x-laravel-env: &laravel-env
   APP_NAME: Reachable
-  APP_ENV: ${APP_ENV:-production}
-  APP_DEBUG: ${APP_DEBUG:-false}
-  APP_KEY: ${APP_KEY}
-  APP_URL: ${APP_URL}
-  FRONTEND_URL: ${FRONTEND_URL}
+  APP_ENV: local
+  APP_DEBUG: "true"
+  APP_KEY: ${APP_KEY:-base64:devkeydevkeydevkeydevkeydevkeydevkey12==}
+  APP_URL: http://localhost:8009
+  FRONTEND_URL: http://localhost:3000
   LOG_CHANNEL: stderr
-  LOG_LEVEL: info
+  LOG_LEVEL: debug
   DB_CONNECTION: pgsql
   DB_HOST: postgres
   DB_PORT: 5432
-  DB_DATABASE: ${DB_DATABASE}
-  DB_USERNAME: ${DB_USERNAME}
-  DB_PASSWORD: ${DB_PASSWORD}
-  REDIS_URL: ${REDIS_URL}
-  REDIS_CLIENT: ${REDIS_CLIENT:-phpredis}
+  DB_DATABASE: reachable
+  DB_USERNAME: reachable
+  DB_PASSWORD: reachable
   REDIS_HOST: redis
   REDIS_PORT: 6379
-  REDIS_DB: ${REDIS_DB:-0}
-  REDIS_CACHE_DB: ${REDIS_CACHE_DB:-1}
+  REDIS_CLIENT: phpredis
+  REDIS_DB: 0
+  REDIS_CACHE_DB: 1
   QUEUE_CONNECTION: redis
   CACHE_STORE: redis
   SESSION_DRIVER: redis
   BROADCAST_CONNECTION: reverb
-  MAIL_MAILER: ${MAIL_MAILER:-smtp}
-  MAIL_SCHEME: ${MAIL_SCHEME:-smtp}
-  MAIL_HOST: ${MAIL_HOST:-127.0.0.1}
-  MAIL_PORT: ${MAIL_PORT:-2525}
-  MAIL_USERNAME: ${MAIL_USERNAME:-}
-  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
-  MAIL_FROM_NAME: ${MAIL_FROM_NAME}
-  REVERB_SERVER_HOST: 0.0.0.0
-  REVERB_SERVER_PORT: 8080
-  REVERB_HOST: ${REVERB_INTERNAL_HOST:-reverb}
-  REVERB_PORT: ${REVERB_INTERNAL_PORT:-8080}
-  REVERB_SCHEME: ${REVERB_INTERNAL_SCHEME:-http}
-  REVERB_APP_ID: ${REVERB_APP_ID}
-  REVERB_APP_KEY: ${REVERB_APP_KEY}
-  REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+  REVERB_APP_ID: reachable-dev
+  REVERB_APP_KEY: reachable-dev-key
+  REVERB_APP_SECRET: reachable-dev-secret
+  REVERB_HOST: reverb
+  REVERB_PORT: 8080
+  REVERB_SCHEME: http
+  PHP_OPCACHE_VALIDATE_TIMESTAMPS: 1
 
 x-laravel-service: &laravel-service
   build:
     context: ./api
     dockerfile: Dockerfile
-  env_file:
-    - ./.env
   volumes:
-    - reachable_data:/var/www/html/storage
+    - ./api:/var/www/html
+    - /var/www/html/vendor
   networks:
     - reachable
 
@@ -64,6 +53,12 @@ services:
     environment:
       <<: *laravel-env
       RUN_MIGRATIONS: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@file_get_contents(\"http://127.0.0.1/api/v1/onboarding/state\") === false ? 1 : 0);'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
     ports:
       - "8009:80"
 
@@ -73,14 +68,13 @@ services:
     restart: unless-stopped
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
       <<: *laravel-env
-      RUN_MIGRATIONS: "false"
     command: ["php", "artisan", "horizon"]
 
   reverb:
@@ -94,33 +88,50 @@ services:
         condition: service_healthy
     environment:
       <<: *laravel-env
-      RUN_MIGRATIONS: "false"
       REVERB_SERVER_HOST: 0.0.0.0
       REVERB_SERVER_PORT: 8080
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
     ports:
       - "8080:8080"
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: reachable-frontend
+  scheduler:
+    <<: *laravel-service
+    container_name: reachable-scheduler
     restart: unless-stopped
     depends_on:
       app:
-        condition: service_started
-    env_file:
-      - ./.env
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://app/api/v1}
-      NEXT_PUBLIC_REVERB_APP_KEY: ${NEXT_PUBLIC_REVERB_APP_KEY}
-      NEXT_PUBLIC_REVERB_HOST: ${NEXT_PUBLIC_REVERB_HOST}
-      NEXT_PUBLIC_REVERB_PORT: ${NEXT_PUBLIC_REVERB_PORT}
-      NEXT_PUBLIC_REVERB_SCHEME: ${NEXT_PUBLIC_REVERB_SCHEME}
+      <<: *laravel-env
+    command: ["php", "artisan", "schedule:work"]
+
+  frontend:
+    image: node:22-alpine
+    container_name: reachable-frontend
+    working_dir: /app
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8009/api/v1
+      INTERNAL_API_URL: http://app/api/v1
+      NEXT_PUBLIC_REVERB_APP_KEY: reachable-dev-key
+      NEXT_PUBLIC_REVERB_HOST: localhost
+      NEXT_PUBLIC_REVERB_PORT: 8080
+      NEXT_PUBLIC_REVERB_SCHEME: http
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     ports:
       - "3000:3000"
+    command: ["sh", "-c", "npm install && npm run dev -- --hostname 0.0.0.0"]
     networks:
       - reachable
 
@@ -129,11 +140,11 @@ services:
     container_name: reachable-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: reachable
+      POSTGRES_USER: reachable
+      POSTGRES_PASSWORD: reachable
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U reachable -d reachable"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -141,8 +152,6 @@ services:
       - reachable_postgres_data:/var/lib/postgresql/data
     networks:
       - reachable
-    ports:
-      - "59387:5432"
 
   redis:
     image: redis:7-alpine
@@ -159,8 +168,7 @@ services:
 
 volumes:
   reachable_postgres_data:
-  reachable_data:
 
 networks:
   reachable:
-    name: reachable
+    name: reachable-dev
