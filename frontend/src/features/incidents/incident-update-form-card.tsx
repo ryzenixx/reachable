@@ -1,4 +1,3 @@
-import { Eye, PencilLine } from "lucide-react";
 import type { UseFormReturn } from "react-hook-form";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
