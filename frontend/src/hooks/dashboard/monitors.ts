@@ -39,6 +39,7 @@ export function useCreateMonitor() {
         timeout_ms: values.timeout_ms,
         expected_status_code: values.expected_status_code,
         is_active: values.is_active,
+        verify_ssl: values.verify_ssl,
         latest_check: null,
         checks: [],
         created_at: new Date().toISOString(),
