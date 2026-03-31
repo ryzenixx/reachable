@@ -12,8 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
 class CheckTokenAbility
 {
     /**
-     * Only enforce abilities on actual personal access tokens.
-     * Session-based auth and transient tokens (e.g. Sanctum::actingAs in tests) are allowed through.
+     * Enforce token abilities only on real persisted personal access tokens.
+     * Transient tokens, mocks (tests), and session auth are allowed through.
      */
     public function handle(Request $request, Closure $next, string ...$abilities): Response
     {
@@ -25,7 +25,7 @@ class CheckTokenAbility
 
         $token = $user->currentAccessToken();
 
-        if (! $token instanceof PersonalAccessToken) {
+        if (! $token instanceof PersonalAccessToken || $token->getKey() === null) {
             return $next($request);
         }
 
