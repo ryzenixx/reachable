@@ -51,6 +51,10 @@ until php -r '
   sleep 2
 done
 
+mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views
+chown -R www-data:www-data storage/framework
+chmod -R ug+rwx storage/framework
+
 php artisan migrate --force
 php artisan storage:link >/dev/null 2>&1 || true
 
