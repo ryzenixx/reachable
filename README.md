@@ -8,14 +8,20 @@
 
 <svg></svg>
 
-Open-source status pages and uptime monitoring built for the AI era.  
+### Open-source status pages and uptime monitoring built for the AI era.
+
 Free. Blazing-fast. Self-hostable.
+
+![LICENCE](https://img.shields.io/github/license/ryzenixx/reachable?style=flat)
+![ISSUES](https://img.shields.io/github/issues/ryzenixx/reachable?style=flat)
+![STARS](https://img.shields.io/github/stars/ryzenixx/reachable?style=flat)
+![WATCHERS](https://img.shields.io/github/watchers/ryzenixx/reachable?style=flat)
 
 [Quick Start](#quick-start) • [Screenshots](#screenshots) • [Configuration](#configuration)
 
-</div>
+<img />
 
----
+</div>
 
 ![Public Status Page](docs/screenshots/public-status-page.png)
 
