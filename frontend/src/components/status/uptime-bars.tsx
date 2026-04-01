@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useRef, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Incident, IncidentImpact, UptimeMetric } from "@/types/api";
 
@@ -125,6 +125,7 @@ function collectIncidentDayData(incidents: Incident[], serviceId: string): Map<s
 
 export function UptimeBars({ metrics, serviceId, incidents }: UptimeBarsProps): React.JSX.Element {
   const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const metricByDay = useMemo(() => {
     return new Map(metrics.map((metric) => [normalizeMetricDayKey(metric.date), Number(metric.uptime_percentage)]));
@@ -153,7 +154,6 @@ export function UptimeBars({ metrics, serviceId, incidents }: UptimeBarsProps): 
         impact: incidentDay?.impact ?? null,
         incidentTitles: incidentDay?.titles ?? [],
         uptime,
-        fillColor: incidentDay ? impactFillColorMap[incidentDay.impact] : impactFillColorMap.none,
       };
     });
   }, [incidentByDay, metricByDay]);
@@ -169,13 +169,29 @@ export function UptimeBars({ metrics, serviceId, incidents }: UptimeBarsProps): 
   const viewBoxHeight = 28;
   const barRadius = 3;
 
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * viewBoxWidth;
+      const index = Math.min(Math.max(Math.round(x / barStep), 0), barCount - 1);
+      setActiveBarIndex(index);
+    },
+    [viewBoxWidth, barStep, barCount],
+  );
+
   return (
     <div className="relative">
       <svg
+        ref={svgRef}
         aria-label="Uptime history bars"
         className="h-7 w-full"
+        onMouseLeave={() => setActiveBarIndex(null)}
+        onMouseMove={handleMouseMove}
         preserveAspectRatio="none"
         role="img"
+        style={{ cursor: "pointer" }}
         viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
       >
         {bars.map((bar) => {
@@ -188,23 +204,13 @@ export function UptimeBars({ metrics, serviceId, incidents }: UptimeBarsProps): 
               aria-label={`${bar.label} service status details`}
               fill={fill}
               height={viewBoxHeight}
-              onBlur={() => {
-                setActiveBarIndex((current) => (current === bar.index ? null : current));
-              }}
-              onFocus={() => {
-                setActiveBarIndex(bar.index);
-              }}
-              onMouseEnter={() => {
-                setActiveBarIndex(bar.index);
-              }}
-              onMouseLeave={() => {
-                setActiveBarIndex((current) => (current === bar.index ? null : current));
-              }}
+              onBlur={() => setActiveBarIndex(null)}
+              onFocus={() => setActiveBarIndex(bar.index)}
               opacity={activeBarIndex === bar.index ? 0.85 : 1}
               role="button"
               rx={barRadius}
               ry={barRadius}
-              style={{ cursor: "pointer", outline: "none", transition: "opacity 0.15s" }}
+              style={{ outline: "none", transition: "opacity 0.15s" }}
               tabIndex={0}
               width={barWidth}
               x={x}
