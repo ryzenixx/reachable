@@ -21,9 +21,9 @@ Free. Blazing-fast. Self-hostable.
 
 <img />
 
-</div>
-
 ![Public Status Page](docs/screenshots/public-status-page.png)
+
+</div>
 
 ## Built For Fast Incident Communication
 
