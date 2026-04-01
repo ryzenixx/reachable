@@ -13,11 +13,11 @@ type IncidentDayData = {
   titles: string[];
 };
 
-const impactColorClassMap: Record<IncidentImpact, string> = {
-  none: "bg-green-500",
-  minor: "bg-yellow-500",
-  major: "bg-orange-500",
-  critical: "bg-red-500",
+const impactFillColorMap: Record<IncidentImpact, string> = {
+  none: "#22c55e",
+  minor: "#eab308",
+  major: "#f97316",
+  critical: "#ef4444",
 };
 
 const impactTextClassMap: Record<IncidentImpact, string> = {
@@ -153,7 +153,7 @@ export function UptimeBars({ metrics, serviceId, incidents }: UptimeBarsProps): 
         impact: incidentDay?.impact ?? null,
         incidentTitles: incidentDay?.titles ?? [],
         uptime,
-        colorClass: incidentDay ? impactColorClassMap[incidentDay.impact] : "bg-green-500",
+        fillColor: incidentDay ? impactFillColorMap[incidentDay.impact] : impactFillColorMap.none,
       };
     });
   }, [incidentByDay, metricByDay]);
@@ -161,33 +161,58 @@ export function UptimeBars({ metrics, serviceId, incidents }: UptimeBarsProps): 
   const activeBar = activeBarIndex === null ? null : bars[activeBarIndex];
   const tooltipLeft = activeBar ? Math.min(Math.max(((activeBar.index + 0.5) / bars.length) * 100, 14), 86) : 50;
 
+  const barCount = bars.length;
+  const barWidth = 7;
+  const barGap = 3;
+  const barStep = barWidth + barGap;
+  const viewBoxWidth = barCount * barStep - barGap;
+  const viewBoxHeight = 28;
+  const barRadius = 3;
+
   return (
     <div className="relative">
-      <div className="flex w-full items-end gap-px">
-        {bars.map((bar) => (
-          <button
-            key={bar.dayKey}
-            aria-label={`${bar.label} service status details`}
-            className={cn(
-              "h-7 min-w-0 flex-1 rounded-full transition-opacity hover:opacity-85 focus-visible:opacity-85 focus-visible:outline-none",
-              bar.colorClass,
-            )}
-            onBlur={() => {
-              setActiveBarIndex((current) => (current === bar.index ? null : current));
-            }}
-            onFocus={() => {
-              setActiveBarIndex(bar.index);
-            }}
-            onMouseEnter={() => {
-              setActiveBarIndex(bar.index);
-            }}
-            onMouseLeave={() => {
-              setActiveBarIndex((current) => (current === bar.index ? null : current));
-            }}
-            type="button"
-          />
-        ))}
-      </div>
+      <svg
+        aria-label="Uptime history bars"
+        className="h-7 w-full"
+        preserveAspectRatio="none"
+        role="img"
+        viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+      >
+        {bars.map((bar) => {
+          const x = bar.index * barStep;
+          const fill = bar.impact !== null ? impactFillColorMap[bar.impact] : impactFillColorMap.none;
+
+          return (
+            <rect
+              key={bar.dayKey}
+              aria-label={`${bar.label} service status details`}
+              fill={fill}
+              height={viewBoxHeight}
+              onBlur={() => {
+                setActiveBarIndex((current) => (current === bar.index ? null : current));
+              }}
+              onFocus={() => {
+                setActiveBarIndex(bar.index);
+              }}
+              onMouseEnter={() => {
+                setActiveBarIndex(bar.index);
+              }}
+              onMouseLeave={() => {
+                setActiveBarIndex((current) => (current === bar.index ? null : current));
+              }}
+              opacity={activeBarIndex === bar.index ? 0.85 : 1}
+              role="button"
+              rx={barRadius}
+              ry={barRadius}
+              style={{ cursor: "pointer", transition: "opacity 0.15s" }}
+              tabIndex={0}
+              width={barWidth}
+              x={x}
+              y={0}
+            />
+          );
+        })}
+      </svg>
 
       {activeBar ? (
         <div
