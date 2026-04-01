@@ -204,7 +204,7 @@ export function UptimeBars({ metrics, serviceId, incidents }: UptimeBarsProps): 
               role="button"
               rx={barRadius}
               ry={barRadius}
-              style={{ cursor: "pointer", transition: "opacity 0.15s" }}
+              style={{ cursor: "pointer", outline: "none", transition: "opacity 0.15s" }}
               tabIndex={0}
               width={barWidth}
               x={x}
