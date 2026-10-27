@@ -1,0 +1,1 @@
+ALTER TABLE "status_page" ADD COLUMN "published" boolean DEFAULT false NOT NULL;

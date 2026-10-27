@@ -29,6 +29,13 @@
       "when": 1793136771191,
       "tag": "0003_unique_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793136920398,
+      "tag": "0004_smart_hedge_knight",
+      "breakpoints": true
     }
   ]
 }

@@ -6,3 +6,6 @@ export const createStatusPageSchema = z.strictObject({
 });
 
 export type CreateStatusPage = z.infer<typeof createStatusPageSchema>;
+
+export const statusPageIdSchema = z.uuid();
+export const publicationSchema = z.strictObject({ published: z.boolean() });
