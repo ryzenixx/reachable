@@ -7,11 +7,12 @@ import type { CreateIncident, CreateIncidentUpdate } from "./validation";
 
 export async function createIncident(pageId: string, input: CreateIncident) {
   return db.transaction(async (tx) => {
-    if (input.componentIds.length) {
+    const componentIds = input.components.map((entry) => entry.componentId);
+    if (componentIds.length) {
       const components = await tx.select({ id: component.id }).from(component)
-        .where(and(eq(component.statusPageId, pageId), inArray(component.id, input.componentIds)))
+        .where(and(eq(component.statusPageId, pageId), inArray(component.id, componentIds)))
         .for("share");
-      if (components.length !== input.componentIds.length) return undefined;
+      if (components.length !== componentIds.length) return undefined;
     }
 
     const [created] = await tx.insert(incident).values({
@@ -24,10 +25,11 @@ export async function createIncident(pageId: string, input: CreateIncident) {
       status: input.status,
       message: input.message,
     });
-    if (input.componentIds.length) {
-      await tx.insert(incidentComponent).values(input.componentIds.map((componentId) => ({
+    if (input.components.length) {
+      await tx.insert(incidentComponent).values(input.components.map(({ componentId, status }) => ({
         incidentId: created.id,
         componentId,
+        impact: status,
       })));
     }
     return created;
@@ -41,9 +43,21 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
       .for("update");
     if (!existing) return undefined;
 
+    if (input.components?.length) {
+      const ids = input.components.map((entry) => entry.componentId);
+      const linked = await tx.select({ id: incidentComponent.componentId }).from(incidentComponent)
+        .where(and(eq(incidentComponent.incidentId, incidentId), inArray(incidentComponent.componentId, ids)));
+      if (linked.length !== ids.length) return "invalid_components" as const;
+      for (const entry of input.components) {
+        await tx.update(incidentComponent).set({ impact: entry.status })
+          .where(and(eq(incidentComponent.incidentId, incidentId), eq(incidentComponent.componentId, entry.componentId)));
+      }
+    }
+
     const [update] = await tx.insert(incidentUpdate).values({
       incidentId,
-      ...input,
+      status: input.status,
+      message: input.message,
       createdAt: sql`clock_timestamp()`,
     }).returning();
     await tx.update(incident).set({ status: input.status, updatedAt: update.createdAt })
@@ -69,7 +83,7 @@ export async function listIncidents(pageId: string, publicOnly = false) {
   }).from(incidentUpdate).where(inArray(incidentUpdate.incidentId, ids))
     .orderBy(desc(incidentUpdate.createdAt), desc(incidentUpdate.id));
   const components = await db.select({
-    incidentId: incidentComponent.incidentId, id: component.id, name: component.name,
+    incidentId: incidentComponent.incidentId, id: component.id, name: component.name, impact: incidentComponent.impact,
   }).from(incidentComponent).innerJoin(component, eq(component.id, incidentComponent.componentId))
     .where(inArray(incidentComponent.incidentId, ids)).orderBy(component.position, component.createdAt, component.id);
 

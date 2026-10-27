@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { statusPage } from "../db/schema/status-page";
 import { component } from "../db/schema/component";
+import { effectiveComponentStatus } from "../components/status";
 import type { CreateStatusPage } from "./validation";
 
 export function listStatusPages(organizationId: string) {
@@ -40,7 +41,7 @@ export async function getPublicStatusPage(slug: string) {
     componentId: component.id,
     componentName: component.name,
     componentDescription: component.description,
-    componentStatus: component.status,
+    componentStatus: effectiveComponentStatus,
   }).from(statusPage)
     .leftJoin(component, eq(component.statusPageId, statusPage.id))
     .where(and(eq(statusPage.slug, slug), eq(statusPage.published, true)))

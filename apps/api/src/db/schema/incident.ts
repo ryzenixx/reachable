@@ -1,5 +1,5 @@
 import { index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { component } from "./component";
+import { component, componentStatus } from "./component";
 import { statusPage } from "./status-page";
 
 export const incidentStatus = pgEnum("incident_status", ["investigating", "identified", "monitoring", "resolved"]);
@@ -24,4 +24,5 @@ export const incidentUpdate = pgTable("incident_update", {
 export const incidentComponent = pgTable("incident_component", {
   incidentId: uuid("incident_id").notNull().references(() => incident.id, { onDelete: "cascade" }),
   componentId: uuid("component_id").notNull().references(() => component.id, { onDelete: "cascade" }),
+  impact: componentStatus("impact"),
 }, (table) => [primaryKey({ columns: [table.incidentId, table.componentId] })]);

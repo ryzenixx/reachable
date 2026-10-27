@@ -43,5 +43,6 @@ incidentRoutes.post("/:incidentId/updates", requireOrganizationAdmin, async (c) 
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
   const update = await addIncidentUpdate(c.get("statusPageId"), incidentId.data, parsed.data);
   if (!update) return c.json({ error: "Not found" }, 404);
+  if (update === "invalid_components") return c.json({ error: "Invalid components" }, 400);
   return c.json(update, 201);
 });

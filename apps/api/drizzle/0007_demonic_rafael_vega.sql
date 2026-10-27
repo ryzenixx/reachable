@@ -1,0 +1,1 @@
+ALTER TABLE "incident_component" ADD COLUMN "impact" "component_status";
