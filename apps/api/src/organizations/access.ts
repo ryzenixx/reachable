@@ -5,7 +5,7 @@ import { db } from "../db";
 import { member } from "../db/schema/auth";
 
 export type OrganizationContext = {
-  Variables: { organizationId: string; membershipRole: string };
+  Variables: { organizationId: string; membershipRole: string; userId: string };
 };
 
 export const requireOrganization = createMiddleware<OrganizationContext>(async (c, next) => {
@@ -24,6 +24,7 @@ export const requireOrganization = createMiddleware<OrganizationContext>(async (
   if (!membership) return c.json({ error: "Forbidden" }, 403);
   c.set("organizationId", organizationId);
   c.set("membershipRole", membership.role);
+  c.set("userId", session.user.id);
   await next();
 });
 

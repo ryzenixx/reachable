@@ -4,6 +4,8 @@ import { requireOrganization, requireOrganizationAdmin, type OrganizationContext
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { addIncidentUpdate, createIncident, listIncidents } from "./queries";
 import { createIncidentSchema, createIncidentUpdateSchema } from "./validation";
+import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
+import { editIncidentMessage, editIncidentTitle, listIncidentEdits } from "./edits";
 
 type IncidentContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 
@@ -21,6 +23,37 @@ incidentRoutes.use("*", async (c, next) => {
 });
 
 incidentRoutes.get("/", async (c) => c.json(await listIncidents(c.get("statusPageId"))));
+
+incidentRoutes.get("/:incidentId/edits", requireOrganizationAdmin, async (c) => {
+  const id = z.uuid().safeParse(c.req.param("incidentId"));
+  if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
+  const edits = await listIncidentEdits(c.get("statusPageId"), id.data);
+  if (!edits) return c.json({ error: "Not found" }, 404);
+  return c.json(edits);
+});
+
+incidentRoutes.patch("/:incidentId", requireOrganizationAdmin, async (c) => {
+  const id = z.uuid().safeParse(c.req.param("incidentId"));
+  if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
+  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  const parsed = editTitleSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+  const updated = await editIncidentTitle(c.get("statusPageId"), id.data, c.get("userId"), parsed.data.title);
+  if (!updated) return c.json({ error: "Not found" }, 404);
+  return c.json(updated);
+});
+
+incidentRoutes.patch("/:incidentId/updates/:updateId", requireOrganizationAdmin, async (c) => {
+  const incidentId = z.uuid().safeParse(c.req.param("incidentId"));
+  const updateId = z.uuid().safeParse(c.req.param("updateId"));
+  if (!incidentId.success || !updateId.success) return c.json({ error: "Invalid ID" }, 400);
+  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  const parsed = editMessageSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+  const updated = await editIncidentMessage(c.get("statusPageId"), incidentId.data, updateId.data, c.get("userId"), parsed.data.message);
+  if (!updated) return c.json({ error: "Not found" }, 404);
+  return c.json(updated);
+});
 
 incidentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {

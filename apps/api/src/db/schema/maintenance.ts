@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, pgEnum, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { component } from "./component";
 import { statusPage } from "./status-page";
 
@@ -37,6 +37,7 @@ export const maintenanceUpdate = pgTable("maintenance_update", {
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("maintenance_update_maintenance_id_idx").on(table.maintenanceId),
+  unique("maintenance_update_id_maintenance_id_unique").on(table.id, table.maintenanceId),
   check("maintenance_update_window_check", sql`${table.endsAt} > ${table.startsAt}`)]);
 
 export const maintenanceUpdateComponent = pgTable("maintenance_update_component", {

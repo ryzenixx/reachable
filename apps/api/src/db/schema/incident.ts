@@ -1,4 +1,4 @@
-import { boolean, index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgEnum, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { component, componentStatus } from "./component";
 import { statusPage } from "./status-page";
 
@@ -20,7 +20,8 @@ export const incidentUpdate = pgTable("incident_update", {
   message: text("message").notNull(),
   componentsRecorded: boolean("components_recorded").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("incident_update_incident_id_idx").on(table.incidentId)]);
+}, (table) => [index("incident_update_incident_id_idx").on(table.incidentId),
+  unique("incident_update_id_incident_id_unique").on(table.id, table.incidentId)]);
 
 export const incidentComponent = pgTable("incident_component", {
   incidentId: uuid("incident_id").notNull().references(() => incident.id, { onDelete: "cascade" }),

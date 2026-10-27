@@ -4,6 +4,8 @@ import { requireOrganization, requireOrganizationAdmin, type OrganizationContext
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { addMaintenanceUpdate, createMaintenance, listMaintenances } from "./queries";
 import { createMaintenanceSchema, createMaintenanceUpdateSchema } from "./validation";
+import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
+import { editMaintenanceMessage, editMaintenanceTitle, listMaintenanceEdits } from "./edits";
 
 type MaintenanceContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 
@@ -19,6 +21,37 @@ maintenanceRoutes.use("*", async (c, next) => {
 });
 
 maintenanceRoutes.get("/", async (c) => c.json(await listMaintenances(c.get("statusPageId"))));
+
+maintenanceRoutes.get("/:maintenanceId/edits", requireOrganizationAdmin, async (c) => {
+  const id = z.uuid().safeParse(c.req.param("maintenanceId"));
+  if (!id.success) return c.json({ error: "Invalid maintenance ID" }, 400);
+  const edits = await listMaintenanceEdits(c.get("statusPageId"), id.data);
+  if (!edits) return c.json({ error: "Not found" }, 404);
+  return c.json(edits);
+});
+
+maintenanceRoutes.patch("/:maintenanceId", requireOrganizationAdmin, async (c) => {
+  const id = z.uuid().safeParse(c.req.param("maintenanceId"));
+  if (!id.success) return c.json({ error: "Invalid maintenance ID" }, 400);
+  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  const parsed = editTitleSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+  const updated = await editMaintenanceTitle(c.get("statusPageId"), id.data, c.get("userId"), parsed.data.title);
+  if (!updated) return c.json({ error: "Not found" }, 404);
+  return c.json(updated);
+});
+
+maintenanceRoutes.patch("/:maintenanceId/updates/:updateId", requireOrganizationAdmin, async (c) => {
+  const maintenanceId = z.uuid().safeParse(c.req.param("maintenanceId"));
+  const updateId = z.uuid().safeParse(c.req.param("updateId"));
+  if (!maintenanceId.success || !updateId.success) return c.json({ error: "Invalid ID" }, 400);
+  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  const parsed = editMessageSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+  const updated = await editMaintenanceMessage(c.get("statusPageId"), maintenanceId.data, updateId.data, c.get("userId"), parsed.data.message);
+  if (!updated) return c.json({ error: "Not found" }, 404);
+  return c.json(updated);
+});
 maintenanceRoutes.post("/", requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = createMaintenanceSchema.safeParse(await c.req.json().catch(() => null));
