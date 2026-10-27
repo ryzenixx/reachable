@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { auth } from "./auth";
 import { componentRoutes } from "./components/routes";
+import { incidentRoutes } from "./incidents/routes";
 import { statusPageRoutes } from "./status-pages/routes";
 import { publicStatusPageRoutes } from "./status-pages/public-routes";
 
@@ -11,5 +12,6 @@ app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/public/status-pages", publicStatusPageRoutes);
 app.route("/api/organizations/:organizationId/status-pages", statusPageRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/components", componentRoutes);
+app.route("/api/organizations/:organizationId/status-pages/:statusPageId/incidents", incidentRoutes);
 
 export default app;

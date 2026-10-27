@@ -36,6 +36,20 @@
       "when": 1793136920398,
       "tag": "0004_smart_hedge_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793137185021,
+      "tag": "0005_cool_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793137222984,
+      "tag": "0006_superb_zzzax",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,13 @@ export function listStatusPages(organizationId: string) {
     .orderBy(statusPage.createdAt, statusPage.id);
 }
 
+export async function pageBelongsToOrganization(pageId: string, organizationId: string) {
+  const [page] = await db.select({ id: statusPage.id }).from(statusPage)
+    .where(and(eq(statusPage.id, pageId), eq(statusPage.organizationId, organizationId)))
+    .limit(1);
+  return Boolean(page);
+}
+
 export async function createStatusPage(organizationId: string, input: CreateStatusPage) {
   const [page] = await db.insert(statusPage)
     .values({ ...input, organizationId })

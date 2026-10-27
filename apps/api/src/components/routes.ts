@@ -4,7 +4,8 @@ import {
   requireOrganizationAdmin,
   type OrganizationContext,
 } from "../organizations/access";
-import { createComponent, deleteComponent, listComponents, pageBelongsToOrganization, updateComponent } from "./queries";
+import { pageBelongsToOrganization } from "../status-pages/queries";
+import { createComponent, deleteComponent, listComponents, updateComponent } from "./queries";
 import { componentIdSchema, createComponentSchema, updateComponentSchema } from "./validation";
 
 type ComponentContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
@@ -52,7 +53,8 @@ componentRoutes.patch("/:componentId", requireOrganizationAdmin, async (c) => {
 componentRoutes.delete("/:componentId", requireOrganizationAdmin, async (c) => {
   const componentId = componentIdSchema.safeParse(c.req.param("componentId"));
   if (!componentId.success) return c.json({ error: "Invalid component ID" }, 400);
-  const deleted = await deleteComponent(c.get("statusPageId"), componentId.data);
-  if (!deleted) return c.json({ error: "Not found" }, 404);
+  const result = await deleteComponent(c.get("statusPageId"), componentId.data);
+  if (result === "not_found") return c.json({ error: "Not found" }, 404);
+  if (result === "in_use") return c.json({ error: "Component is linked to an incident" }, 409);
   return c.body(null, 204);
 });

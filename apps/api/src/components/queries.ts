@@ -1,15 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, notExists } from "drizzle-orm";
 import { db } from "../db";
 import { component } from "../db/schema/component";
-import { statusPage } from "../db/schema/status-page";
+import { incidentComponent } from "../db/schema/incident";
 import type { CreateComponent, UpdateComponent } from "./validation";
-
-export async function pageBelongsToOrganization(pageId: string, organizationId: string) {
-  const [page] = await db.select({ id: statusPage.id }).from(statusPage)
-    .where(and(eq(statusPage.id, pageId), eq(statusPage.organizationId, organizationId)))
-    .limit(1);
-  return Boolean(page);
-}
 
 export function listComponents(pageId: string) {
   return db.select().from(component).where(eq(component.statusPageId, pageId))
@@ -29,7 +22,13 @@ export async function updateComponent(pageId: string, componentId: string, input
 
 export async function deleteComponent(pageId: string, componentId: string) {
   const [deleted] = await db.delete(component)
-    .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId)))
+    .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId), notExists(
+      db.select({ id: incidentComponent.incidentId }).from(incidentComponent)
+        .where(eq(incidentComponent.componentId, component.id)),
+    )))
     .returning({ id: component.id });
-  return Boolean(deleted);
+  if (deleted) return "deleted";
+  const [existing] = await db.select({ id: component.id }).from(component)
+    .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).limit(1);
+  return existing ? "in_use" : "not_found";
 }
