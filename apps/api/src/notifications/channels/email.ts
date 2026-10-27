@@ -1,14 +1,9 @@
 import nodemailer from "nodemailer";
-
-type Email = {
-  to: string;
-  subject: string;
-  text: string;
-};
+import type { EmailNotification } from "../types";
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | undefined;
 
-export async function sendEmail(message: Email): Promise<void> {
+export async function sendEmail(notification: EmailNotification): Promise<void> {
   const smtpUrl = process.env.SMTP_URL;
   const from = process.env.EMAIL_FROM;
 
@@ -17,5 +12,10 @@ export async function sendEmail(message: Email): Promise<void> {
   }
 
   transporter ??= nodemailer.createTransport(smtpUrl);
-  await transporter.sendMail({ from, ...message });
+  await transporter.sendMail({
+    from,
+    to: notification.to,
+    subject: notification.subject,
+    text: notification.text,
+  });
 }
