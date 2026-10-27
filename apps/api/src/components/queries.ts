@@ -1,6 +1,7 @@
 import { and, eq, getTableColumns, notExists } from "drizzle-orm";
 import { db } from "../db";
 import { component } from "../db/schema/component";
+import { componentGroup } from "../db/schema/component-group";
 import { incidentComponent } from "../db/schema/incident";
 import { maintenanceComponent } from "../db/schema/maintenance";
 import type { CreateComponent, UpdateComponent } from "./validation";
@@ -18,14 +19,29 @@ export function listComponents(pageId: string) {
 }
 
 export async function createComponent(pageId: string, input: CreateComponent) {
-  const [created] = await db.insert(component).values({ ...input, statusPageId: pageId }).returning();
-  return { ...created, manualStatus: created.status };
+  return db.transaction(async (tx) => {
+    if (input.groupId) {
+      const [group] = await tx.select({ id: componentGroup.id }).from(componentGroup)
+        .where(and(eq(componentGroup.id, input.groupId), eq(componentGroup.statusPageId, pageId))).for("share");
+      if (!group) return "invalid_group" as const;
+    }
+    const [created] = await tx.insert(component).values({ ...input, statusPageId: pageId }).returning();
+    return { ...created, manualStatus: created.status };
+  });
 }
 
 export async function updateComponent(pageId: string, componentId: string, input: UpdateComponent) {
-  const [updated] = await db.update(component).set(input)
-    .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).returning();
-  if (!updated) return undefined;
+  const updated = await db.transaction(async (tx) => {
+    if (input.groupId) {
+      const [group] = await tx.select({ id: componentGroup.id }).from(componentGroup)
+        .where(and(eq(componentGroup.id, input.groupId), eq(componentGroup.statusPageId, pageId))).for("share");
+      if (!group) return "invalid_group" as const;
+    }
+    const [row] = await tx.update(component).set(input)
+      .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).returning();
+    return row;
+  });
+  if (!updated || updated === "invalid_group") return updated;
   const [current] = await db.select(componentFields).from(component).where(eq(component.id, updated.id));
   return current;
 }

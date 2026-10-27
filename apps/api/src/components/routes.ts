@@ -33,6 +33,7 @@ componentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   const parsed = createComponentSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
   const created = await createComponent(c.get("statusPageId"), parsed.data);
+  if (created === "invalid_group") return c.json({ error: "Invalid component group" }, 400);
   return c.json(created, 201);
 });
 
@@ -47,6 +48,7 @@ componentRoutes.patch("/:componentId", requireOrganizationAdmin, async (c) => {
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
   const updated = await updateComponent(c.get("statusPageId"), componentId.data, parsed.data);
   if (!updated) return c.json({ error: "Not found" }, 404);
+  if (updated === "invalid_group") return c.json({ error: "Invalid component group" }, 400);
   return c.json(updated);
 });
 

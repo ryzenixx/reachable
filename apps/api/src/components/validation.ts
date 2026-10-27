@@ -6,6 +6,7 @@ const fields = {
   description: z.string().trim().max(500).nullable(),
   status: z.enum(componentStatus.enumValues),
   position: z.int().min(0).max(2147483647),
+  groupId: z.uuid().nullable(),
 };
 
 export const createComponentSchema = z.strictObject({
@@ -13,6 +14,7 @@ export const createComponentSchema = z.strictObject({
   description: fields.description.optional(),
   status: fields.status.optional(),
   position: fields.position.optional(),
+  groupId: fields.groupId.optional(),
 });
 
 export const updateComponentSchema = z.strictObject({
@@ -20,6 +22,7 @@ export const updateComponentSchema = z.strictObject({
   description: fields.description.optional(),
   status: fields.status.optional(),
   position: fields.position.optional(),
+  groupId: fields.groupId.optional(),
 }).refine((value) => Object.keys(value).length > 0);
 
 export const componentIdSchema = z.uuid();
