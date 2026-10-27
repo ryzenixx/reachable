@@ -3,7 +3,7 @@ import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionRateLimit, subscriptionToken } from "../db/schema/subscription";
-import { sendNotification } from "../notifications";
+import { sendSubscriptionConfirmation } from "../notifications/email/messages";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -60,8 +60,7 @@ export async function requestEmailSubscription(slug: string, email: string) {
       { hash: hashToken(confirm), subscriptionId: entry.id, purpose: "confirm", expiresAt: sql`now() + interval '24 hours'` },
       { hash: hashToken(unsubscribe), subscriptionId: entry.id, purpose: "unsubscribe" },
     ]);
-    await sendNotification({ channel: "email", to: email, subject: `Confirm your subscription to ${page.name}`,
-      text: `Confirm your subscription to ${page.name}:\n${tokenUrl("confirm", confirm)}\n\nThis confirmation link expires in 24 hours.\n\nUnsubscribe: ${tokenUrl("unsubscribe", unsubscribe)}` });
+    await sendSubscriptionConfirmation(email, page.name, tokenUrl("confirm", confirm), tokenUrl("unsubscribe", unsubscribe));
     return "accepted" as const;
   });
 }

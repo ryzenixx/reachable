@@ -17,5 +17,9 @@ export async function sendEmail(notification: EmailNotification): Promise<void> 
     to: notification.to,
     subject: notification.subject,
     text: notification.text,
+    html: notification.html,
+    attachments: notification.inlineImages,
+    disableFileAccess: true,
+    disableUrlAccess: true,
   });
 }
