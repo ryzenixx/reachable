@@ -1,0 +1,5 @@
+{
+  "name": "reachable",
+  "private": true,
+  "workspaces": ["apps/*"]
+}
