@@ -3,8 +3,11 @@ import { db } from "../db";
 import { statusPage, statusPageSlug } from "../db/schema/status-page";
 import { component } from "../db/schema/component";
 import { componentGroup } from "../db/schema/component-group";
+import { incident, incidentComponent } from "../db/schema/incident";
+import { maintenance, maintenanceComponent } from "../db/schema/maintenance";
 import { effectiveComponentStatus } from "../components/status";
 import type { CreateStatusPage, UpdateStatusPage } from "./validation";
+import { summarizeStatus } from "./status";
 
 export function listStatusPages(organizationId: string) {
   return db.select().from(statusPage)
@@ -74,31 +77,51 @@ export async function setStatusPagePublication(organizationId: string, pageId: s
 }
 
 export async function getPublicStatusPage(slug: string) {
-  const rows = await db.select({
-    pageName: statusPage.name,
-    pageSlug: statusPage.slug,
-    pageId: statusPage.id,
-    componentId: component.id,
-    groupId: component.groupId,
-    componentName: component.name,
-    componentDescription: component.description,
-    componentStatus: effectiveComponentStatus,
-  }).from(statusPage)
-    .leftJoin(component, eq(component.statusPageId, statusPage.id))
-    .where(and(eq(statusPage.slug, slug), eq(statusPage.published, true)))
-    .orderBy(component.position, component.createdAt, component.id);
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({
+      pageName: statusPage.name,
+      pageSlug: statusPage.slug,
+      pageId: statusPage.id,
+      componentId: component.id,
+      groupId: component.groupId,
+      componentName: component.name,
+      componentDescription: component.description,
+      componentStatus: effectiveComponentStatus,
+      activeIncidents: sql<boolean>`exists (
+        select 1 from ${incident} where ${incident.statusPageId} = ${statusPage.id} and ${incident.status} <> 'resolved'
+      )`,
+      activeMaintenances: sql<boolean>`exists (
+        select 1 from ${maintenance} where ${maintenance.statusPageId} = ${statusPage.id}
+          and ${maintenance.status} in ('in_progress', 'verifying')
+      )`,
+      unscopedImpact: sql<boolean>`exists (
+        select 1 from ${incident} where ${incident.statusPageId} = ${statusPage.id} and ${incident.status} <> 'resolved'
+          and not exists (select 1 from ${incidentComponent} where ${incidentComponent.incidentId} = ${incident.id})
+      ) or exists (
+        select 1 from ${maintenance} where ${maintenance.statusPageId} = ${statusPage.id}
+          and ${maintenance.status} in ('in_progress', 'verifying')
+          and not exists (select 1 from ${maintenanceComponent} where ${maintenanceComponent.maintenanceId} = ${maintenance.id})
+      )`,
+    }).from(statusPage)
+      .leftJoin(component, eq(component.statusPageId, statusPage.id))
+      .where(and(eq(statusPage.slug, slug), eq(statusPage.published, true)))
+      .orderBy(component.position, component.createdAt, component.id);
 
-  if (rows.length === 0) return undefined;
-  const groups = await db.select({ id: componentGroup.id, name: componentGroup.name, position: componentGroup.position })
-    .from(componentGroup).innerJoin(statusPage, eq(statusPage.id, componentGroup.statusPageId))
-    .where(and(eq(statusPage.id, rows[0].pageId), eq(statusPage.published, true)))
-    .orderBy(componentGroup.position, componentGroup.createdAt, componentGroup.id);
-  return {
-    name: rows[0].pageName,
-    slug: rows[0].pageSlug,
-    groups,
-    components: rows.flatMap((row) => row.componentId && row.componentName && row.componentStatus
+    if (rows.length === 0) return undefined;
+    const groups = await tx.select({ id: componentGroup.id, name: componentGroup.name, position: componentGroup.position })
+      .from(componentGroup).innerJoin(statusPage, eq(statusPage.id, componentGroup.statusPageId))
+      .where(and(eq(statusPage.id, rows[0].pageId), eq(statusPage.published, true)))
+      .orderBy(componentGroup.position, componentGroup.createdAt, componentGroup.id);
+    const components = rows.flatMap((row) => row.componentId && row.componentName && row.componentStatus
       ? [{ id: row.componentId, name: row.componentName, description: row.componentDescription, status: row.componentStatus, groupId: row.groupId }]
-      : []),
-  };
+      : []);
+    return {
+      name: rows[0].pageName,
+      slug: rows[0].pageSlug,
+      summary: summarizeStatus(components.map((entry) => entry.status), rows[0].activeIncidents,
+        rows[0].activeMaintenances, rows[0].unscopedImpact),
+      groups,
+      components,
+    };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
