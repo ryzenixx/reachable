@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { component } from "../db/schema/component";
 import { incident, incidentComponent } from "../db/schema/incident";
+import { maintenance, maintenanceComponent } from "../db/schema/maintenance";
 
 const manualSeverity = sql`case ${component.status}
   when 'under_maintenance' then 1
@@ -28,9 +29,16 @@ const hasUnknownImpact = sql`exists (
       and ${incident.status} <> 'resolved' and ${incidentComponent.impact} is null
   )`;
 
+const maintenanceSeverity = sql`case when exists (
+  select 1 from ${maintenanceComponent}
+  inner join ${maintenance} on ${maintenance.id} = ${maintenanceComponent.maintenanceId}
+  where ${maintenanceComponent.componentId} = ${component.id}
+    and ${maintenance.status} in ('in_progress', 'verifying')
+) then 1 else 0 end`;
+
 export const effectiveComponentStatus = sql<typeof component.$inferSelect.status | "unknown">`case
   when ${hasUnknownImpact} then 'unknown'
-  else case greatest(${manualSeverity}, ${incidentSeverity})
+  else case greatest(${manualSeverity}, ${incidentSeverity}, ${maintenanceSeverity})
   when 4 then 'major_outage'
   when 3 then 'partial_outage'
   when 2 then 'degraded_performance'

@@ -1,8 +1,16 @@
 import { Hono } from "hono";
 import { getPublicStatusPage } from "./queries";
 import { listPublicIncidents } from "../incidents/queries";
+import { listPublicMaintenances } from "../maintenances/queries";
 
 export const publicStatusPageRoutes = new Hono();
+
+publicStatusPageRoutes.get("/:slug/maintenances", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const maintenances = await listPublicMaintenances(c.req.param("slug"));
+  if (!maintenances) return c.json({ error: "Not found" }, 404);
+  return c.json(maintenances);
+});
 
 publicStatusPageRoutes.get("/:slug/incidents", async (c) => {
   c.header("Cache-Control", "no-store");

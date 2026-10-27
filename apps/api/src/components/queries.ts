@@ -2,6 +2,7 @@ import { and, eq, getTableColumns, notExists } from "drizzle-orm";
 import { db } from "../db";
 import { component } from "../db/schema/component";
 import { incidentComponent } from "../db/schema/incident";
+import { maintenanceComponent } from "../db/schema/maintenance";
 import type { CreateComponent, UpdateComponent } from "./validation";
 import { effectiveComponentStatus } from "./status";
 
@@ -34,6 +35,9 @@ export async function deleteComponent(pageId: string, componentId: string) {
     .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId), notExists(
       db.select({ id: incidentComponent.incidentId }).from(incidentComponent)
         .where(eq(incidentComponent.componentId, component.id)),
+    ), notExists(
+      db.select({ id: maintenanceComponent.maintenanceId }).from(maintenanceComponent)
+        .where(eq(maintenanceComponent.componentId, component.id)),
     )))
     .returning({ id: component.id });
   if (deleted) return "deleted";
