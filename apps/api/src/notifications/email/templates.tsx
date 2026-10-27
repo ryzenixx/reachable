@@ -50,6 +50,14 @@ export function ResetPasswordEmail({ url }: { url: string }) {
   </ActionEmail>;
 }
 
+export function OrganizationInvitationEmail({ organizationName, inviterName, url }: { organizationName: string; inviterName: string; url: string }) {
+  return <ActionEmail preview="You've been invited to an organization" heading="You're invited"
+    actionLabel="View invitation" actionUrl={url}
+    footer="If you were not expecting this invitation, you can ignore this email.">
+    <Text style={paragraphStyle}>{inviterName} invited you to join {organizationName} on Reachable.</Text>
+  </ActionEmail>;
+}
+
 export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl }: { pageName: string; confirmUrl: string; unsubscribeUrl: string }) {
   return <ActionEmail preview={`Confirm your subscription to ${pageName}`} heading="Confirm your subscription"
     actionLabel="Confirm subscription" actionUrl={confirmUrl}

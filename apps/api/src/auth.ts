@@ -3,7 +3,8 @@ import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 import { db } from "./db";
 import * as schema from "./db/schema/auth";
-import { sendPasswordResetEmail, sendVerificationEmail } from "./notifications/email/messages";
+import { sendOrganizationInvitation, sendPasswordResetEmail, sendVerificationEmail } from "./notifications/email/messages";
+import { invitationUrl } from "./organizations/invitations";
 
 export const auth = betterAuth({
   advanced: {
@@ -23,5 +24,9 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => sendVerificationEmail(user.email, url),
   },
-  plugins: [organization()],
+  plugins: [organization({
+    requireEmailVerificationOnInvitation: true,
+    sendInvitationEmail: async ({ id, email, organization, inviter }) =>
+      sendOrganizationInvitation(email, organization.name, inviter.user.name, invitationUrl(id)),
+  })],
 });
