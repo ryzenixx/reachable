@@ -1,4 +1,4 @@
-import { index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { component, componentStatus } from "./component";
 import { statusPage } from "./status-page";
 
@@ -18,6 +18,7 @@ export const incidentUpdate = pgTable("incident_update", {
   incidentId: uuid("incident_id").notNull().references(() => incident.id, { onDelete: "cascade" }),
   status: incidentStatus("status").notNull(),
   message: text("message").notNull(),
+  componentsRecorded: boolean("components_recorded").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("incident_update_incident_id_idx").on(table.incidentId)]);
 
@@ -26,3 +27,10 @@ export const incidentComponent = pgTable("incident_component", {
   componentId: uuid("component_id").notNull().references(() => component.id, { onDelete: "cascade" }),
   impact: componentStatus("impact"),
 }, (table) => [primaryKey({ columns: [table.incidentId, table.componentId] })]);
+
+export const incidentUpdateComponent = pgTable("incident_update_component", {
+  updateId: uuid("update_id").notNull().references(() => incidentUpdate.id, { onDelete: "cascade" }),
+  componentId: uuid("component_id").notNull(),
+  name: text("name").notNull(),
+  impact: componentStatus("impact"),
+}, (table) => [primaryKey({ columns: [table.updateId, table.componentId] })]);

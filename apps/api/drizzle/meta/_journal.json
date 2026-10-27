@@ -57,6 +57,13 @@
       "when": 1793137514727,
       "tag": "0007_demonic_rafael_vega",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793137882960,
+      "tag": "0008_tranquil_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,15 @@ export const createIncidentSchema = z.strictObject({
   components: impacts,
 });
 
-export const createIncidentUpdateSchema = z.strictObject({ status, message, components: impacts.optional() });
+export const createIncidentUpdateSchema = z.strictObject({
+  status,
+  message,
+  components: impacts.optional(),
+  removedComponentIds: z.array(z.uuid()).max(100)
+    .refine((ids) => new Set(ids).size === ids.length).optional(),
+}).refine((value) => {
+  const removed = new Set(value.removedComponentIds);
+  return !value.components?.some((entry) => removed.has(entry.componentId));
+});
 export type CreateIncident = z.infer<typeof createIncidentSchema>;
 export type CreateIncidentUpdate = z.infer<typeof createIncidentUpdateSchema>;
