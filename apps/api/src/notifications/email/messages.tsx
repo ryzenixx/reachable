@@ -17,7 +17,8 @@ export async function sendOrganizationInvitation(to: string, organizationName: s
 }
 
 export async function sendStatusUpdate(to: string, update: StatusNotification, unsubscribeUrl: string) {
-  await sendNotification({ channel: "email", to, subject: update.kind === "incident" ? "Incident update" : "Maintenance update",
+  await sendNotification({ channel: "email", to, subject: update.kind === "incident" ? "Incident update"
+    : update.kind === "maintenance" ? "Maintenance update" : "Incident postmortem",
     ...await renderEmail(<StatusUpdateEmail update={update} unsubscribeUrl={unsubscribeUrl} />) });
 }
 

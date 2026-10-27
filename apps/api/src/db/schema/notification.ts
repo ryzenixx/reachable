@@ -3,7 +3,7 @@ import { check, index, integer, jsonb, pgEnum, pgTable, timestamp, uniqueIndex, 
 import { subscription } from "./subscription";
 
 export type StatusNotification = {
-  kind: "incident" | "maintenance";
+  kind: "incident" | "maintenance" | "postmortem";
   pageName: string;
   title: string;
   status: string;

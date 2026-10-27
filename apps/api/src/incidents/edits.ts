@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { incidentEdit } from "../db/schema/content-edit";
 import { incident, incidentUpdate } from "../db/schema/incident";
+import { postmortem, postmortemPublication } from "../db/schema/postmortem";
 import { correctPendingNotifications } from "../notifications/corrections";
 
 export async function editIncidentTitle(pageId: string, incidentId: string, actorId: string, title: string) {
@@ -13,7 +14,10 @@ export async function editIncidentTitle(pageId: string, incidentId: string, acto
     const [updated] = await tx.update(incident).set({ title, updatedAt: sql`clock_timestamp()` })
       .where(eq(incident.id, incidentId)).returning();
     await tx.insert(incidentEdit).values({ incidentId, field: "title", previousValue: current.title, newValue: title, actorId });
-    await correctPendingNotifications(tx, sql`select ${incidentUpdate.id} from ${incidentUpdate} where ${incidentUpdate.incidentId} = ${incidentId}::uuid`, "title", title);
+    await correctPendingNotifications(tx, sql`select ${incidentUpdate.id} from ${incidentUpdate} where ${incidentUpdate.incidentId} = ${incidentId}::uuid
+      union all select ${postmortemPublication.id} from ${postmortemPublication}
+      inner join ${postmortem} on ${postmortem.id} = ${postmortemPublication.postmortemId}
+      where ${postmortem.incidentId} = ${incidentId}::uuid`, "title", title);
     return updated;
   });
 }

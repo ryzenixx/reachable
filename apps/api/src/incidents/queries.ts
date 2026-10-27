@@ -1,8 +1,9 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { component } from "../db/schema/component";
 import { incident, incidentComponent, incidentUpdate, incidentUpdateComponent } from "../db/schema/incident";
 import { statusPage } from "../db/schema/status-page";
+import { postmortem } from "../db/schema/postmortem";
 import type { CreateIncident, CreateIncidentUpdate } from "./validation";
 import { enqueueStatusNotification } from "../notifications/queue";
 
@@ -116,42 +117,49 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
 }
 
 export async function listIncidents(pageId: string, publicOnly = false) {
-  const conditions = [eq(incident.statusPageId, pageId)];
-  if (publicOnly) conditions.push(eq(statusPage.published, true));
-  const incidents = await db.select({
-    id: incident.id, title: incident.title, status: incident.status,
-    createdAt: incident.createdAt, updatedAt: incident.updatedAt,
-  }).from(incident).innerJoin(statusPage, eq(statusPage.id, incident.statusPageId))
-    .where(and(...conditions)).orderBy(desc(incident.createdAt), desc(incident.id));
-  if (!incidents.length) return [];
+  return db.transaction(async (tx) => {
+    const conditions = [eq(incident.statusPageId, pageId)];
+    if (publicOnly) conditions.push(eq(statusPage.published, true));
+    const incidents = await tx.select({
+      id: incident.id, title: incident.title, status: incident.status,
+      createdAt: incident.createdAt, updatedAt: incident.updatedAt,
+    }).from(incident).innerJoin(statusPage, eq(statusPage.id, incident.statusPageId))
+      .where(and(...conditions)).orderBy(desc(incident.createdAt), desc(incident.id));
+    if (!incidents.length) return [];
 
-  const ids = incidents.map((item) => item.id);
-  const updates = await db.select({
-    id: incidentUpdate.id, incidentId: incidentUpdate.incidentId,
-    status: incidentUpdate.status, message: incidentUpdate.message, createdAt: incidentUpdate.createdAt,
-    componentsRecorded: incidentUpdate.componentsRecorded,
-  }).from(incidentUpdate).where(inArray(incidentUpdate.incidentId, ids))
-    .orderBy(desc(incidentUpdate.createdAt), desc(incidentUpdate.id));
-  const snapshots = updates.length ? await db.select().from(incidentUpdateComponent)
-    .where(inArray(incidentUpdateComponent.updateId, updates.map((update) => update.id)))
-    .orderBy(incidentUpdateComponent.name, incidentUpdateComponent.componentId) : [];
-  const components = await db.select({
-    incidentId: incidentComponent.incidentId, id: component.id, name: component.name, impact: incidentComponent.impact,
-  }).from(incidentComponent).innerJoin(component, eq(component.id, incidentComponent.componentId))
-    .where(inArray(incidentComponent.incidentId, ids)).orderBy(component.position, component.createdAt, component.id);
+    const ids = incidents.map((item) => item.id);
+    const updates = await tx.select({
+      id: incidentUpdate.id, incidentId: incidentUpdate.incidentId,
+      status: incidentUpdate.status, message: incidentUpdate.message, createdAt: incidentUpdate.createdAt,
+      componentsRecorded: incidentUpdate.componentsRecorded,
+    }).from(incidentUpdate).where(inArray(incidentUpdate.incidentId, ids))
+      .orderBy(desc(incidentUpdate.createdAt), desc(incidentUpdate.id));
+    const snapshots = updates.length ? await tx.select().from(incidentUpdateComponent)
+      .where(inArray(incidentUpdateComponent.updateId, updates.map((update) => update.id)))
+      .orderBy(incidentUpdateComponent.name, incidentUpdateComponent.componentId) : [];
+    const components = await tx.select({
+      incidentId: incidentComponent.incidentId, id: component.id, name: component.name, impact: incidentComponent.impact,
+    }).from(incidentComponent).innerJoin(component, eq(component.id, incidentComponent.componentId))
+      .where(inArray(incidentComponent.incidentId, ids)).orderBy(component.position, component.createdAt, component.id);
+    const published = await tx.select({ incidentId: postmortem.incidentId, content: postmortem.publishedContent,
+      publishedAt: postmortem.publishedAt, updatedAt: postmortem.publishedUpdatedAt }).from(postmortem)
+      .where(and(inArray(postmortem.incidentId, ids), isNotNull(postmortem.publishedContent)));
 
-  return incidents.map((item) => ({
-    ...item,
-    updates: updates.filter((update) => update.incidentId === item.id)
-      .map(({ incidentId: _, componentsRecorded, ...update }) => ({
-        ...update,
-        components: componentsRecorded
-          ? snapshots.filter((entry) => entry.updateId === update.id)
-            .map(({ componentId, name, impact }) => ({ id: componentId, name, impact }))
-          : null,
-      })),
-    components: components.filter((entry) => entry.incidentId === item.id).map(({ incidentId: _, ...entry }) => entry),
-  }));
+    return incidents.map((item) => ({
+      ...item,
+      postmortem: published.filter((entry) => entry.incidentId === item.id)
+        .map(({ incidentId: _, ...entry }) => entry)[0] ?? null,
+      updates: updates.filter((update) => update.incidentId === item.id)
+        .map(({ incidentId: _, componentsRecorded, ...update }) => ({
+          ...update,
+          components: componentsRecorded
+            ? snapshots.filter((entry) => entry.updateId === update.id)
+              .map(({ componentId, name, impact }) => ({ id: componentId, name, impact }))
+            : null,
+        })),
+      components: components.filter((entry) => entry.incidentId === item.id).map(({ incidentId: _, ...entry }) => entry),
+    }));
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 
 export async function listPublicIncidents(slug: string) {

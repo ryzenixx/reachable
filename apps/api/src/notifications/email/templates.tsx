@@ -63,7 +63,7 @@ export function OrganizationInvitationEmail({ organizationName, inviterName, url
 }
 
 export function StatusUpdateEmail({ update, unsubscribeUrl }: { update: StatusNotification; unsubscribeUrl: string }) {
-  const label = update.kind === "incident" ? "Incident update" : "Maintenance update";
+  const label = update.kind === "incident" ? "Incident update" : update.kind === "maintenance" ? "Maintenance update" : "Incident postmortem";
   return <ActionEmail preview={label} heading={update.title} footer={<Link href={unsubscribeUrl}>Unsubscribe</Link>}>
     <Text style={paragraphStyle}>{update.pageName} · {update.status.replaceAll("_", " ")}</Text>
     <Text style={paragraphStyle}>{update.message.split(/\r?\n/).map((line, index) =>

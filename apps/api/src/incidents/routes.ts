@@ -6,6 +6,7 @@ import { addIncidentUpdate, createIncident, listIncidents } from "./queries";
 import { createIncidentSchema, createIncidentUpdateSchema } from "./validation";
 import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
 import { editIncidentMessage, editIncidentTitle, listIncidentEdits } from "./edits";
+import { postmortemRoutes } from "../postmortems/routes";
 
 type IncidentContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 
@@ -21,6 +22,8 @@ incidentRoutes.use("*", async (c, next) => {
   c.set("statusPageId", pageId.data);
   await next();
 });
+
+incidentRoutes.route("/:incidentId/postmortem", postmortemRoutes);
 
 incidentRoutes.get("/", async (c) => c.json(await listIncidents(c.get("statusPageId"))));
 
