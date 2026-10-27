@@ -71,6 +71,13 @@
       "when": 1793138163692,
       "tag": "0009_woozy_dexter_bennett",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793138988173,
+      "tag": "0010_chemical_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

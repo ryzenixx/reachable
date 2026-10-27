@@ -12,6 +12,8 @@ export const createMaintenanceSchema = z.strictObject({
   startsAt: date,
   endsAt: date,
   componentIds,
+  autoStart: z.boolean().optional(),
+  autoComplete: z.boolean().optional(),
 }).refine((value) => Date.parse(value.endsAt) > Date.parse(value.startsAt));
 
 export const createMaintenanceUpdateSchema = z.strictObject({
@@ -20,6 +22,8 @@ export const createMaintenanceUpdateSchema = z.strictObject({
   startsAt: date.optional(),
   endsAt: date.optional(),
   componentIds: componentIds.optional(),
+  autoStart: z.boolean().optional(),
+  autoComplete: z.boolean().optional(),
 });
 
 export type CreateMaintenance = z.infer<typeof createMaintenanceSchema>;

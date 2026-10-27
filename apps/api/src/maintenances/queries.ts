@@ -15,7 +15,10 @@ export async function createMaintenance(pageId: string, input: CreateMaintenance
     if (components.length !== input.componentIds.length) return undefined;
     const startsAt = new Date(input.startsAt);
     const endsAt = new Date(input.endsAt);
-    const [created] = await tx.insert(maintenance).values({ statusPageId: pageId, title: input.title, startsAt, endsAt }).returning();
+    const [created] = await tx.insert(maintenance).values({
+      statusPageId: pageId, title: input.title, startsAt, endsAt,
+      autoStart: input.autoStart, autoComplete: input.autoComplete,
+    }).returning();
     const [update] = await tx.insert(maintenanceUpdate).values({
       maintenanceId: created.id, status: "scheduled", message: input.message, startsAt, endsAt,
     }).returning({ id: maintenanceUpdate.id });
@@ -55,7 +58,10 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
       .where(eq(maintenanceComponent.maintenanceId, maintenanceId));
     if (components.length) await tx.insert(maintenanceUpdateComponent)
       .values(components.map((entry) => ({ updateId: update.id, ...entry })));
-    await tx.update(maintenance).set({ status: input.status, startsAt, endsAt, updatedAt: update.createdAt })
+    await tx.update(maintenance).set({
+      status: input.status, startsAt, endsAt, updatedAt: update.createdAt,
+      autoStart: input.autoStart, autoComplete: input.autoComplete,
+    })
       .where(eq(maintenance.id, maintenanceId));
     return update;
   });
@@ -67,6 +73,8 @@ export async function listMaintenances(pageId: string, publicOnly = false) {
   const items = await db.select({
     id: maintenance.id, title: maintenance.title, status: maintenance.status, startsAt: maintenance.startsAt,
     endsAt: maintenance.endsAt, createdAt: maintenance.createdAt, updatedAt: maintenance.updatedAt,
+    autoStart: maintenance.autoStart, autoComplete: maintenance.autoComplete,
+    autoStartMissed: sql<boolean>`${maintenance.status} = 'scheduled' and ${maintenance.autoStart} and ${maintenance.endsAt} <= now()`,
   }).from(maintenance).innerJoin(statusPage, eq(statusPage.id, maintenance.statusPageId))
     .where(and(...conditions)).orderBy(desc(maintenance.startsAt), desc(maintenance.id));
   if (!items.length) return [];
@@ -79,8 +87,8 @@ export async function listMaintenances(pageId: string, publicOnly = false) {
   const components = await db.select({ maintenanceId: maintenanceComponent.maintenanceId, id: component.id, name: component.name })
     .from(maintenanceComponent).innerJoin(component, eq(component.id, maintenanceComponent.componentId))
     .where(inArray(maintenanceComponent.maintenanceId, ids)).orderBy(component.position, component.createdAt, component.id);
-  return items.map((item) => ({
-    ...item,
+  return items.map(({ autoStart, autoComplete, autoStartMissed, ...item }) => ({
+    ...item, ...(!publicOnly && { autoStart, autoComplete, autoStartMissed }),
     updates: updates.filter((entry) => entry.maintenanceId === item.id).map(({ maintenanceId: _, ...entry }) => ({
       ...entry, components: snapshots.filter((snapshot) => snapshot.updateId === entry.id)
         .map(({ componentId, name }) => ({ id: componentId, name })),

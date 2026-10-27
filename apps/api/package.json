@@ -1,7 +1,8 @@
 {
   "name": "api",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "worker": "bun run src/worker/index.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.14",

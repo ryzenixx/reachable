@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { component } from "./component";
 import { statusPage } from "./status-page";
 
@@ -12,9 +12,13 @@ export const maintenance = pgTable("maintenance", {
   status: maintenanceStatus("status").default("scheduled").notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  autoStart: boolean("auto_start").default(false).notNull(),
+  autoComplete: boolean("auto_complete").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("maintenance_status_page_id_idx").on(table.statusPageId),
+  index("maintenance_auto_start_idx").on(table.startsAt).where(sql`${table.status} = 'scheduled' and ${table.autoStart}`),
+  index("maintenance_auto_complete_idx").on(table.endsAt).where(sql`${table.status} in ('in_progress', 'verifying') and ${table.autoComplete}`),
   check("maintenance_window_check", sql`${table.endsAt} > ${table.startsAt}`)]);
 
 export const maintenanceComponent = pgTable("maintenance_component", {
@@ -27,6 +31,7 @@ export const maintenanceUpdate = pgTable("maintenance_update", {
   maintenanceId: uuid("maintenance_id").notNull().references(() => maintenance.id, { onDelete: "cascade" }),
   status: maintenanceStatus("status").notNull(),
   message: text("message").notNull(),
+  automated: boolean("automated").default(false).notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
