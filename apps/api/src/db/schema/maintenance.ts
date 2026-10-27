@@ -14,6 +14,7 @@ export const maintenance = pgTable("maintenance", {
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   autoStart: boolean("auto_start").default(false).notNull(),
   autoComplete: boolean("auto_complete").default(false).notNull(),
+  notifyOnAutoTransition: boolean("notify_on_auto_transition").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("maintenance_status_page_id_idx").on(table.statusPageId),

@@ -14,12 +14,14 @@ export const createIncidentSchema = z.strictObject({
   status,
   message,
   components: impacts,
+  notifySubscribers: z.boolean().optional(),
 });
 
 export const createIncidentUpdateSchema = z.strictObject({
   status,
   message,
   components: impacts.optional(),
+  notifySubscribers: z.boolean().optional(),
   removedComponentIds: z.array(z.uuid()).max(100)
     .refine((ids) => new Set(ids).size === ids.length).optional(),
 }).refine((value) => {

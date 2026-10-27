@@ -85,6 +85,13 @@
       "when": 1793140704232,
       "tag": "0011_living_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793142779936,
+      "tag": "0012_icy_stature",
+      "breakpoints": true
     }
   ]
 }

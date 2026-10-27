@@ -4,6 +4,7 @@ import { component } from "../db/schema/component";
 import { maintenance, maintenanceComponent, maintenanceUpdate, maintenanceUpdateComponent } from "../db/schema/maintenance";
 import { statusPage } from "../db/schema/status-page";
 import type { CreateMaintenance, CreateMaintenanceUpdate } from "./validation";
+import { enqueueStatusNotification } from "../notifications/queue";
 
 export async function createMaintenance(pageId: string, input: CreateMaintenance) {
   return db.transaction(async (tx) => {
@@ -17,7 +18,7 @@ export async function createMaintenance(pageId: string, input: CreateMaintenance
     const endsAt = new Date(input.endsAt);
     const [created] = await tx.insert(maintenance).values({
       statusPageId: pageId, title: input.title, startsAt, endsAt,
-      autoStart: input.autoStart, autoComplete: input.autoComplete,
+      autoStart: input.autoStart, autoComplete: input.autoComplete, notifyOnAutoTransition: input.notifyOnAutoTransition,
     }).returning();
     const [update] = await tx.insert(maintenanceUpdate).values({
       maintenanceId: created.id, status: "scheduled", message: input.message, startsAt, endsAt,
@@ -26,6 +27,10 @@ export async function createMaintenance(pageId: string, input: CreateMaintenance
       await tx.insert(maintenanceComponent).values(components.map(({ id }) => ({ maintenanceId: created.id, componentId: id })));
       await tx.insert(maintenanceUpdateComponent).values(components.map(({ id, name }) => ({ updateId: update.id, componentId: id, name })));
     }
+    if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
+      kind: "maintenance", title: created.title, status: "scheduled", message: input.message,
+      startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
+    });
     return created;
   });
 }
@@ -60,9 +65,13 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
       .values(components.map((entry) => ({ updateId: update.id, ...entry })));
     await tx.update(maintenance).set({
       status: input.status, startsAt, endsAt, updatedAt: update.createdAt,
-      autoStart: input.autoStart, autoComplete: input.autoComplete,
+      autoStart: input.autoStart, autoComplete: input.autoComplete, notifyOnAutoTransition: input.notifyOnAutoTransition,
     })
       .where(eq(maintenance.id, maintenanceId));
+    if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
+      kind: "maintenance", title: current.title, status: input.status, message: input.message,
+      startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
+    });
     return update;
   });
 }
@@ -73,7 +82,7 @@ export async function listMaintenances(pageId: string, publicOnly = false) {
   const items = await db.select({
     id: maintenance.id, title: maintenance.title, status: maintenance.status, startsAt: maintenance.startsAt,
     endsAt: maintenance.endsAt, createdAt: maintenance.createdAt, updatedAt: maintenance.updatedAt,
-    autoStart: maintenance.autoStart, autoComplete: maintenance.autoComplete,
+    autoStart: maintenance.autoStart, autoComplete: maintenance.autoComplete, notifyOnAutoTransition: maintenance.notifyOnAutoTransition,
     autoStartMissed: sql<boolean>`${maintenance.status} = 'scheduled' and ${maintenance.autoStart} and ${maintenance.endsAt} <= now()`,
   }).from(maintenance).innerJoin(statusPage, eq(statusPage.id, maintenance.statusPageId))
     .where(and(...conditions)).orderBy(desc(maintenance.startsAt), desc(maintenance.id));
@@ -87,8 +96,8 @@ export async function listMaintenances(pageId: string, publicOnly = false) {
   const components = await db.select({ maintenanceId: maintenanceComponent.maintenanceId, id: component.id, name: component.name })
     .from(maintenanceComponent).innerJoin(component, eq(component.id, maintenanceComponent.componentId))
     .where(inArray(maintenanceComponent.maintenanceId, ids)).orderBy(component.position, component.createdAt, component.id);
-  return items.map(({ autoStart, autoComplete, autoStartMissed, ...item }) => ({
-    ...item, ...(!publicOnly && { autoStart, autoComplete, autoStartMissed }),
+  return items.map(({ autoStart, autoComplete, notifyOnAutoTransition, autoStartMissed, ...item }) => ({
+    ...item, ...(!publicOnly && { autoStart, autoComplete, notifyOnAutoTransition, autoStartMissed }),
     updates: updates.filter((entry) => entry.maintenanceId === item.id).map(({ maintenanceId: _, ...entry }) => ({
       ...entry, components: snapshots.filter((snapshot) => snapshot.updateId === entry.id)
         .map(({ componentId, name }) => ({ id: componentId, name })),

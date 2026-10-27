@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { component } from "../db/schema/component";
 import { maintenance, maintenanceComponent, maintenanceUpdate, maintenanceUpdateComponent } from "../db/schema/maintenance";
+import { enqueueStatusNotification } from "../notifications/queue";
 
 export async function processDueMaintenance() {
   return db.transaction(async (tx) => {
@@ -27,6 +28,10 @@ export async function processDueMaintenance() {
     if (components.length) await tx.insert(maintenanceUpdateComponent)
       .values(components.map((entry) => ({ updateId: update.id, ...entry })));
     await tx.update(maintenance).set({ status, updatedAt: update.createdAt }).where(eq(maintenance.id, current.id));
+    if (current.notifyOnAutoTransition) await enqueueStatusNotification(tx, current.statusPageId, update.id, {
+      kind: "maintenance", title: current.title, status, message,
+      startsAt: current.startsAt.toISOString(), endsAt: current.endsAt.toISOString(),
+    });
     return true;
   });
 }

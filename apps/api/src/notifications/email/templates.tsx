@@ -1,13 +1,15 @@
 import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Text } from "react-email";
+import { Fragment } from "react";
 import type { ReactNode } from "react";
 import { logoContentId } from "./assets";
+import type { StatusNotification } from "../../db/schema/notification";
 
 type ActionEmailProps = {
   preview: string;
   heading: string;
   children: ReactNode;
-  actionLabel: string;
-  actionUrl: string;
+  actionLabel?: string;
+  actionUrl?: string;
   footer?: ReactNode;
 };
 
@@ -21,12 +23,14 @@ export function ActionEmail({ preview, heading, children, actionLabel, actionUrl
           <Img src={`cid:${logoContentId}`} alt="Reachable" width="186" height="28" />
           <Heading style={{ color: "#26352d", fontSize: "24px", fontWeight: "600", lineHeight: "32px", letterSpacing: "-0.4px", margin: "32px 0 8px" }}>{heading}</Heading>
           {children}
-          <Button href={actionUrl} style={{ backgroundColor: "#26352d", borderRadius: "6px", color: "#ffffff", fontSize: "14px", fontWeight: "600", padding: "12px 20px", textDecoration: "none" }}>
-            {actionLabel}
-          </Button>
-          <Text style={{ color: "#4b5563", fontSize: "14px", lineHeight: "22px", margin: "24px 0" }}>
-            If the button does not work, open this link: <Link href={actionUrl}>{actionUrl}</Link>
-          </Text>
+          {actionUrl && actionLabel && <>
+            <Button href={actionUrl} style={{ backgroundColor: "#26352d", borderRadius: "6px", color: "#ffffff", fontSize: "14px", fontWeight: "600", padding: "12px 20px", textDecoration: "none" }}>
+              {actionLabel}
+            </Button>
+            <Text style={{ color: "#4b5563", fontSize: "14px", lineHeight: "22px", margin: "24px 0" }}>
+              If the button does not work, open this link: <Link href={actionUrl}>{actionUrl}</Link>
+            </Text>
+          </>}
           {footer && <><Hr /><Text style={{ color: "#6b7280", fontSize: "13px", lineHeight: "20px", margin: "16px 0 0" }}>{footer}</Text></>}
         </Container>
       </Body>
@@ -55,6 +59,16 @@ export function OrganizationInvitationEmail({ organizationName, inviterName, url
     actionLabel="View invitation" actionUrl={url}
     footer="If you were not expecting this invitation, you can ignore this email.">
     <Text style={paragraphStyle}>{inviterName} invited you to join {organizationName} on Reachable.</Text>
+  </ActionEmail>;
+}
+
+export function StatusUpdateEmail({ update, unsubscribeUrl }: { update: StatusNotification; unsubscribeUrl: string }) {
+  const label = update.kind === "incident" ? "Incident update" : "Maintenance update";
+  return <ActionEmail preview={label} heading={update.title} footer={<Link href={unsubscribeUrl}>Unsubscribe</Link>}>
+    <Text style={paragraphStyle}>{update.pageName} · {update.status.replaceAll("_", " ")}</Text>
+    <Text style={paragraphStyle}>{update.message.split(/\r?\n/).map((line, index) =>
+      <Fragment key={index}>{index > 0 && <br />}{line}</Fragment>)}</Text>
+    {update.startsAt && update.endsAt && <Text style={paragraphStyle}>Scheduled: {update.startsAt} – {update.endsAt}</Text>}
   </ActionEmail>;
 }
 

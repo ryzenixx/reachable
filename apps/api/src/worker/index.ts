@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { processDueMaintenance } from "../maintenances/scheduler";
+import { processNotificationDelivery } from "../notifications/delivery";
 
 const shutdown = new AbortController();
 process.once("SIGINT", () => shutdown.abort());
@@ -12,6 +13,13 @@ while (!shutdown.signal.aborted) {
     }
   } catch (error) {
     console.error("Failed to process scheduled maintenances:", error);
+  }
+  try {
+    for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
+      if (!await processNotificationDelivery()) break;
+    }
+  } catch (error) {
+    console.error("Failed to process notification deliveries:", error);
   }
   if (!shutdown.signal.aborted) {
     try {

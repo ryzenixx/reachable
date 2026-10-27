@@ -3,6 +3,7 @@ import { auth } from "./auth";
 import { componentRoutes } from "./components/routes";
 import { incidentRoutes } from "./incidents/routes";
 import { maintenanceRoutes } from "./maintenances/routes";
+import { notificationRoutes } from "./notifications/routes";
 import { channelRoutes } from "./subscriptions/channels";
 import { publicSubscriptionRoutes, subscriptionActionRoutes } from "./subscriptions/routes";
 import { statusPageRoutes } from "./status-pages/routes";
@@ -27,5 +28,6 @@ app.route("/api/organizations/:organizationId/status-pages", statusPageRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/components", componentRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/incidents", incidentRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/maintenances", maintenanceRoutes);
+app.route("/api/organizations/:organizationId/status-pages/:statusPageId/notifications", notificationRoutes);
 
 export default app;

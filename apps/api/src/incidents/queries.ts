@@ -4,6 +4,7 @@ import { component } from "../db/schema/component";
 import { incident, incidentComponent, incidentUpdate, incidentUpdateComponent } from "../db/schema/incident";
 import { statusPage } from "../db/schema/status-page";
 import type { CreateIncident, CreateIncidentUpdate } from "./validation";
+import { enqueueStatusNotification } from "../notifications/queue";
 
 export async function createIncident(pageId: string, input: CreateIncident) {
   return db.transaction(async (tx) => {
@@ -40,13 +41,16 @@ export async function createIncident(pageId: string, input: CreateIncident) {
         impact: status,
       })));
     }
+    if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
+      kind: "incident", title: created.title, status: input.status, message: input.message,
+    });
     return created;
   });
 }
 
 export async function addIncidentUpdate(pageId: string, incidentId: string, input: CreateIncidentUpdate) {
   return db.transaction(async (tx) => {
-    const [existing] = await tx.select({ id: incident.id }).from(incident)
+    const [existing] = await tx.select({ id: incident.id, title: incident.title }).from(incident)
       .where(and(eq(incident.id, incidentId), eq(incident.statusPageId, pageId)))
       .for("update");
     if (!existing) return undefined;
@@ -103,6 +107,9 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
     }
     await tx.update(incident).set({ status: input.status, updatedAt: update.createdAt })
       .where(eq(incident.id, incidentId));
+    if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
+      kind: "incident", title: existing.title, status: input.status, message: input.message,
+    });
     return update;
   });
 }

@@ -1,21 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionRateLimit, subscriptionToken } from "../db/schema/subscription";
 import { sendSubscriptionConfirmation } from "../notifications/email/messages";
-
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-function tokenUrl(purpose: "confirm" | "unsubscribe", token: string) {
-  const base = process.env.BETTER_AUTH_URL;
-  if (!base) throw new Error("BETTER_AUTH_URL is required for subscription links");
-  const url = new URL(base);
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Invalid BETTER_AUTH_URL");
-  return new URL(`/api/subscriptions/${purpose}/${token}`, url).toString();
-}
+import { hashToken, tokenUrl } from "./tokens";
 
 export async function getPublicChannels(slug: string) {
   const [page] = await db.select({ organizationId: statusPage.organizationId }).from(statusPage)
