@@ -30,6 +30,7 @@ export async function createMaintenance(pageId: string, input: CreateMaintenance
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "maintenance", title: created.title, status: "scheduled", message: input.message,
       startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
+      componentIds: input.componentIds,
     });
     return created;
   });
@@ -44,6 +45,10 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
     const startsAt = input.startsAt ? new Date(input.startsAt) : current.startsAt;
     const endsAt = input.endsAt ? new Date(input.endsAt) : current.endsAt;
     if (endsAt <= startsAt) return "invalid_window" as const;
+    const previousComponents = input.notifySubscribers
+      ? await tx.select({ id: maintenanceComponent.componentId }).from(maintenanceComponent)
+        .where(eq(maintenanceComponent.maintenanceId, maintenanceId))
+      : [];
     if (input.componentIds) {
       const components = input.componentIds.length
         ? await tx.select({ id: component.id }).from(component)
@@ -71,6 +76,7 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "maintenance", title: current.title, status: input.status, message: input.message,
       startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
+      componentIds: [...new Set([...previousComponents.map((entry) => entry.id), ...components.map((entry) => entry.componentId)])],
     });
     return update;
   });

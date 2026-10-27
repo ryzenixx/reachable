@@ -42,7 +42,7 @@ export async function createIncident(pageId: string, input: CreateIncident) {
       })));
     }
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
-      kind: "incident", title: created.title, status: input.status, message: input.message,
+      kind: "incident", title: created.title, status: input.status, message: input.message, componentIds,
     });
     return created;
   });
@@ -109,6 +109,7 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
       .where(eq(incident.id, incidentId));
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "incident", title: existing.title, status: input.status, message: input.message,
+      componentIds: [...new Set([...currentIds, ...finalIds])],
     });
     return update;
   });

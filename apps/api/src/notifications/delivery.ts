@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, eq, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { notificationDelivery } from "../db/schema/notification";
 import { statusPage } from "../db/schema/status-page";
-import { organizationChannel, subscription, subscriptionToken } from "../db/schema/subscription";
+import { organizationChannel, subscription, subscriptionComponent, subscriptionToken } from "../db/schema/subscription";
 import { hashToken, tokenUrl } from "../subscriptions/tokens";
 import { sendStatusUpdate } from "./email/messages";
 
@@ -59,7 +59,13 @@ export async function processNotificationDelivery() {
         .where(and(eq(organizationChannel.organizationId, page.organizationId), eq(organizationChannel.channel, recipient.channel)));
       if (exists) { await postpone(); return; }
     }
-    if (!page.published || !channel?.enabled || !recipient.confirmedAt || recipient.channel !== "email") {
+    let relevant = true;
+    if (!recipient.allComponents && delivery.payload.componentIds?.length) {
+      const [match] = await tx.select({ id: subscriptionComponent.componentId }).from(subscriptionComponent)
+        .where(and(eq(subscriptionComponent.subscriptionId, recipient.id), inArray(subscriptionComponent.componentId, delivery.payload.componentIds))).limit(1);
+      relevant = Boolean(match);
+    }
+    if (!page.published || !channel?.enabled || !recipient.confirmedAt || recipient.channel !== "email" || !relevant) {
       await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
       await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
         .where(eq(notificationDelivery.id, delivery.id));

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { getPublicChannels, requestEmailSubscription, useSubscriptionToken } from "./queries";
+import { getSubscriptionPreferences, setSubscriptionPreferences } from "./preferences";
 
 export const publicSubscriptionRoutes = new Hono();
 
@@ -35,6 +36,32 @@ subscriptionActionRoutes.use("*", async (c, next) => {
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Content-Security-Policy", "default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
   await next();
+});
+
+const preferencesSchema = z.discriminatedUnion("scope", [
+  z.strictObject({ scope: z.literal("all") }),
+  z.strictObject({ scope: z.literal("selected"), componentIds: z.array(z.uuid()).min(1).max(100)
+    .refine((ids) => new Set(ids).size === ids.length) }),
+]);
+
+subscriptionActionRoutes.get("/manage/:token", async (c) => {
+  const token = c.req.param("token");
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return c.json({ error: "Invalid link" }, 400);
+  const preferences = await getSubscriptionPreferences(token);
+  if (!preferences) return c.json({ error: "Invalid or unavailable link" }, 400);
+  return c.json(preferences);
+});
+
+subscriptionActionRoutes.put("/manage/:token", async (c) => {
+  const token = c.req.param("token");
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return c.json({ error: "Invalid link" }, 400);
+  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  const parsed = preferencesSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+  const result = await setSubscriptionPreferences(token, parsed.data);
+  if (result === "invalid_token") return c.json({ error: "Invalid or unavailable link" }, 400);
+  if (result === "invalid_components") return c.json({ error: "Invalid components" }, 400);
+  return c.json({ success: true });
 });
 
 for (const purpose of ["confirm", "unsubscribe"] as const) {

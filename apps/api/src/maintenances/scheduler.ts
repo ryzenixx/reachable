@@ -31,6 +31,7 @@ export async function processDueMaintenance() {
     if (current.notifyOnAutoTransition) await enqueueStatusNotification(tx, current.statusPageId, update.id, {
       kind: "maintenance", title: current.title, status, message,
       startsAt: current.startsAt.toISOString(), endsAt: current.endsAt.toISOString(),
+      componentIds: components.map((entry) => entry.componentId),
     });
     return true;
   });

@@ -10,6 +10,7 @@ export type StatusNotification = {
   message: string;
   startsAt?: string;
   endsAt?: string;
+  componentIds?: string[];
 };
 
 export const deliveryStatus = pgEnum("notification_delivery_status", ["pending", "sent", "failed", "skipped"]);
