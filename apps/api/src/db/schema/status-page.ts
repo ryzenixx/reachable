@@ -9,6 +9,7 @@ export const statusPage = pgTable("status_page", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   published: boolean("published").default(false).notNull(),
+  feedEnabled: boolean("feed_enabled").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

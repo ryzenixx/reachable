@@ -11,3 +11,4 @@ export type UpdateStatusPage = z.infer<typeof updateStatusPageSchema>;
 
 export const statusPageIdSchema = z.uuid();
 export const publicationSchema = z.strictObject({ published: z.boolean() });
+export const feedSettingsSchema = z.strictObject({ enabled: z.boolean() });

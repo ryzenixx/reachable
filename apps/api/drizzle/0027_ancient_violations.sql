@@ -1,0 +1,1 @@
+ALTER TABLE "status_page" ADD COLUMN "feed_enabled" boolean DEFAULT false NOT NULL;

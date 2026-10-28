@@ -5,7 +5,8 @@ import {
   type OrganizationContext,
 } from "../organizations/access";
 import { createStatusPage, getStatusPage, isStatusPageSlugAvailable, listStatusPages, setStatusPagePublication, updateStatusPage } from "./queries";
-import { createStatusPageSchema, publicationSchema, statusPageIdSchema, statusPageSlugSchema, updateStatusPageSchema } from "./validation";
+import { setFeedEnabled } from "../feeds/queries";
+import { createStatusPageSchema, feedSettingsSchema, publicationSchema, statusPageIdSchema, statusPageSlugSchema, updateStatusPageSchema } from "./validation";
 
 export const statusPageRoutes = new Hono<OrganizationContext>();
 
@@ -75,4 +76,15 @@ statusPageRoutes.patch("/:statusPageId/publication", requireOrganizationAdmin, a
   const page = await setStatusPagePublication(c.get("organizationId"), pageId.data, parsed.data.published, c.get("userId"));
   if (!page) return c.json({ error: "Not found" }, 404);
   return c.json(page);
+});
+
+statusPageRoutes.patch("/:statusPageId/feed", requireOrganizationAdmin, async (c) => {
+  const pageId = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
+  if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
+  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  const parsed = feedSettingsSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+  const page = await setFeedEnabled(c.get("organizationId"), pageId.data, parsed.data.enabled, c.get("userId"));
+  if (!page) return c.json({ error: "Not found" }, 404);
+  return c.json({ enabled: page.feedEnabled });
 });

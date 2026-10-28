@@ -12,8 +12,10 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getAsset } from "../branding/queries";
 import { assetKinds } from "../branding/validation";
+import { feedRoutes } from "../feeds/routes";
 
 export const publicStatusPageRoutes = new Hono();
+publicStatusPageRoutes.route("/", feedRoutes);
 
 publicStatusPageRoutes.get("/:slug/branding/assets/:kind", async (c) => {
   c.header("Cache-Control", "no-store");

@@ -91,6 +91,7 @@ export async function getPublicStatusPage(slug: string) {
       pageName: statusPage.name,
       pageSlug: statusPage.slug,
       pageId: statusPage.id,
+      feedEnabled: statusPage.feedEnabled,
       componentId: component.id,
       groupId: component.groupId,
       componentName: component.name,
@@ -129,6 +130,10 @@ export async function getPublicStatusPage(slug: string) {
     return {
       name: rows[0].pageName,
       slug: rows[0].pageSlug,
+      feeds: rows[0].feedEnabled ? {
+        rss: `/api/public/status-pages/${encodeURIComponent(rows[0].pageSlug)}/feed.rss`,
+        atom: `/api/public/status-pages/${encodeURIComponent(rows[0].pageSlug)}/feed.atom`,
+      } : null,
       branding: { ...publicSettings, assets: Object.fromEntries(branding.assets.map(({ kind, digest }) => [kind,
         `/api/public/status-pages/${encodeURIComponent(rows[0].pageSlug)}/branding/assets/${kind}?v=${digest}`])) },
       summary: summarizeStatus(components.map((entry) => entry.status), rows[0].activeIncidents,
