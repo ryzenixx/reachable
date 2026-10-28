@@ -3,3 +3,6 @@ dist/
 .env
 .env.*
 !.env.example
+deploy.env
+deploy.env.*
+!deploy.env.example

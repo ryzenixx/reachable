@@ -1,0 +1,71 @@
+name: reachable-selfhost
+
+x-reachable-image: &reachable-image
+  image: ghcr.io/ryzenixx/reachable:latest
+
+x-reachable-environment: &reachable-environment
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL is required}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+  APP_URL: ${APP_URL:?APP_URL is required}
+  SMTP_URL: ${SMTP_URL:?SMTP_URL is required}
+  EMAIL_FROM: ${EMAIL_FROM:?EMAIL_FROM is required}
+
+services:
+  postgres:
+    image: postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: reachable
+      POSTGRES_USER: reachable
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U reachable -d reachable"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  migrate:
+    <<: *reachable-image
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    command: ["bun", "run", "--bun", "drizzle-kit", "migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    init: true
+
+  api:
+    <<: *reachable-image
+    environment: *reachable-environment
+    ports:
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    init: true
+
+  worker:
+    <<: *reachable-image
+    environment: *reachable-environment
+    command: ["bun", "run", "src/worker/index.ts"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:

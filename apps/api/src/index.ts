@@ -20,10 +20,12 @@ import { templateRoutes } from "./templates/routes";
 import { apiKeyRoutes } from "./api-keys/routes";
 import { integrationRoutes } from "./api-keys/integration-routes";
 import { apiCors, protectOrganizationOrigin } from "./http/origins";
+import { healthRoutes } from "./health/routes";
 
 const app = new Hono();
 
 app.get("/", (c) => c.text("Hello Hono!"));
+app.route("/health", healthRoutes);
 app.use("/api/*", apiCors);
 app.use("/api/organizations/*", protectOrganizationOrigin);
 app.use("/api/auth/organization/invite-member", async (c, next) => {
