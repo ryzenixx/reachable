@@ -3,6 +3,8 @@ import { Fragment } from "react";
 import type { ReactNode } from "react";
 import { logoContentId } from "./assets";
 import type { StatusNotification } from "../../db/schema/notification";
+import type { PageEmailBrand } from "../../branding/email";
+import { readableTextColor } from "../../branding/colors";
 
 type ActionEmailProps = {
   preview: string;
@@ -11,20 +13,25 @@ type ActionEmailProps = {
   actionLabel?: string;
   actionUrl?: string;
   footer?: ReactNode;
+  brand?: PageEmailBrand;
 };
 
-export function ActionEmail({ preview, heading, children, actionLabel, actionUrl, footer }: ActionEmailProps) {
+export function ActionEmail({ preview, heading, children, actionLabel, actionUrl, footer, brand }: ActionEmailProps) {
+  const buttonColor = brand?.brandColor ?? "#26352d";
   return (
     <Html lang="en">
       <Head />
       <Preview>{preview}</Preview>
       <Body style={{ backgroundColor: "#f6f7f9", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif", padding: "32px 12px" }}>
         <Container style={{ backgroundColor: "#ffffff", borderRadius: "8px", margin: "0 auto", maxWidth: "560px", padding: "32px" }}>
-          <Img src={`cid:${logoContentId}`} alt="Reachable" width="186" height="28" />
+          {brand ? brand.logo ? <Img src="cid:page-logo@reachable" alt={brand.name} width="186" style={{ maxWidth: "100%", height: "auto" }} />
+            : <Text style={{ color: "#26352d", fontSize: "20px", fontWeight: "600", margin: "0" }}>{brand.name}</Text>
+            : <Img src={`cid:${logoContentId}`} alt="Reachable" width="186" height="28" />}
+          {brand && <Hr style={{ borderColor: brand.brandColor, margin: "24px 0 0" }} />}
           <Heading style={{ color: "#26352d", fontSize: "24px", fontWeight: "600", lineHeight: "32px", letterSpacing: "-0.4px", margin: "32px 0 8px" }}>{heading}</Heading>
           {children}
           {actionUrl && actionLabel && <>
-            <Button href={actionUrl} style={{ backgroundColor: "#26352d", borderRadius: "6px", color: "#ffffff", fontSize: "14px", fontWeight: "600", padding: "12px 20px", textDecoration: "none" }}>
+            <Button href={actionUrl} style={{ backgroundColor: buttonColor, borderRadius: "6px", color: readableTextColor(buttonColor), fontSize: "14px", fontWeight: "600", padding: "12px 20px", textDecoration: "none" }}>
               {actionLabel}
             </Button>
             <Text style={{ color: "#4b5563", fontSize: "14px", lineHeight: "22px", margin: "24px 0" }}>
@@ -39,6 +46,10 @@ export function ActionEmail({ preview, heading, children, actionLabel, actionUrl
 }
 
 const paragraphStyle = { color: "#374151", fontSize: "16px", lineHeight: "24px", margin: "0 0 24px" };
+
+function BrandingFooter({ text }: { text: string }) {
+  return <>{text.split(/\r?\n/).map((line, index) => <Fragment key={index}>{index > 0 && <br />}{line}</Fragment>)}<br /></>;
+}
 
 export function VerifyEmail({ url }: { url: string }) {
   return <ActionEmail preview="Verify your email address" heading="Verify your email address" actionLabel="Verify email" actionUrl={url}
@@ -62,20 +73,23 @@ export function OrganizationInvitationEmail({ organizationName, inviterName, url
   </ActionEmail>;
 }
 
-export function StatusUpdateEmail({ update, unsubscribeUrl }: { update: StatusNotification; unsubscribeUrl: string }) {
+export function StatusUpdateEmail({ update, unsubscribeUrl, brand }: { update: StatusNotification; unsubscribeUrl: string; brand: PageEmailBrand }) {
   const label = update.kind === "incident" ? "Incident update" : update.kind === "maintenance" ? "Maintenance update" : update.kind === "maintenance_reminder" ? "Maintenance reminder" : "Incident postmortem";
-  return <ActionEmail preview={label} heading={update.title} footer={<Link href={unsubscribeUrl}>Unsubscribe</Link>}>
+  const date = new Intl.DateTimeFormat("en", { timeZone: brand.timezone, dateStyle: "medium", timeStyle: "short" });
+  const window = update.startsAt && update.endsAt && Number.isFinite(Date.parse(update.startsAt)) && Number.isFinite(Date.parse(update.endsAt))
+    ? `${date.format(new Date(update.startsAt))} – ${date.format(new Date(update.endsAt))} (${brand.timezone})` : null;
+  return <ActionEmail preview={label} heading={update.title} brand={brand} footer={<>{brand.footer && <BrandingFooter text={brand.footer} />}<Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
     <Text style={paragraphStyle}>{update.pageName} · {update.status.replaceAll("_", " ")}</Text>
     <Text style={paragraphStyle}>{update.message.split(/\r?\n/).map((line, index) =>
       <Fragment key={index}>{index > 0 && <br />}{line}</Fragment>)}</Text>
-    {update.startsAt && update.endsAt && <Text style={paragraphStyle}>Scheduled: {update.startsAt} – {update.endsAt}</Text>}
+    {window && <Text style={paragraphStyle}>Scheduled: {window}</Text>}
   </ActionEmail>;
 }
 
-export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl }: { pageName: string; confirmUrl: string; unsubscribeUrl: string }) {
+export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl, brand }: { pageName: string; confirmUrl: string; unsubscribeUrl: string; brand: PageEmailBrand }) {
   return <ActionEmail preview={`Confirm your subscription to ${pageName}`} heading="Confirm your subscription"
-    actionLabel="Confirm subscription" actionUrl={confirmUrl}
-    footer={<>This confirmation link expires in 24 hours. <Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
+    actionLabel="Confirm subscription" actionUrl={confirmUrl} brand={brand}
+    footer={<>This confirmation link expires in 24 hours. {brand.footer && <BrandingFooter text={brand.footer} />}<Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
     <Text style={paragraphStyle}>Confirm your subscription to updates from {pageName}.</Text>
   </ActionEmail>;
 }

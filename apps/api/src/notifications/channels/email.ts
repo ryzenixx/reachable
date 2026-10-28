@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { parseOneAddress } from "email-addresses";
 import type { EmailNotification } from "../types";
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | undefined;
@@ -12,9 +13,12 @@ export async function sendEmail(notification: EmailNotification): Promise<void> 
   }
 
   transporter ??= nodemailer.createTransport(smtpUrl);
+  const parsedFrom = notification.senderName ? parseOneAddress(from) : undefined;
+  if (notification.senderName && (!parsedFrom || parsedFrom.type !== "mailbox")) throw new Error("EMAIL_FROM must be a single mailbox");
   await transporter.sendMail({
-    from,
+    from: notification.senderName && parsedFrom?.type === "mailbox" ? { name: notification.senderName, address: parsedFrom.address } : from,
     to: notification.to,
+    replyTo: notification.replyTo,
     subject: notification.subject,
     text: notification.text,
     html: notification.html,

@@ -9,6 +9,7 @@ import { effectiveComponentStatus } from "../components/status";
 import type { CreateStatusPage, UpdateStatusPage } from "./validation";
 import { summarizeStatus } from "./status";
 import { recordPageActivity } from "../activity/record";
+import { readBranding } from "../branding/queries";
 
 export function listStatusPages(organizationId: string) {
   return db.select().from(statusPage)
@@ -123,9 +124,13 @@ export async function getPublicStatusPage(slug: string) {
     const components = rows.flatMap((row) => row.componentId && row.componentName && row.componentStatus
       ? [{ id: row.componentId, name: row.componentName, description: row.componentDescription, status: row.componentStatus, groupId: row.groupId }]
       : []);
+    const branding = await readBranding(tx, rows[0].pageId);
+    const { emailFooter: _, replyTo: __, emailLogoMode: ___, ...publicSettings } = branding.settings;
     return {
       name: rows[0].pageName,
       slug: rows[0].pageSlug,
+      branding: { ...publicSettings, assets: Object.fromEntries(branding.assets.map(({ kind, digest }) => [kind,
+        `/api/public/status-pages/${encodeURIComponent(rows[0].pageSlug)}/branding/assets/${kind}?v=${digest}`])) },
       summary: summarizeStatus(components.map((entry) => entry.status), rows[0].activeIncidents,
         rows[0].activeMaintenances, rows[0].unscopedImpact),
       groups,

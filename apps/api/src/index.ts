@@ -15,6 +15,7 @@ import { activityRoutes } from "./activity/routes";
 import { withAuthActor } from "./activity/auth-context";
 import { adminSubscriptionRoutes } from "./subscriptions/admin-routes";
 import { authEmailRoutes } from "./notifications/auth-email/routes";
+import { brandingRoutes } from "./branding/routes";
 
 const app = new Hono();
 
@@ -55,5 +56,6 @@ app.route("/api/organizations/:organizationId/status-pages/:statusPageId/inciden
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/maintenances", maintenanceRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/notifications", notificationRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/subscriptions", adminSubscriptionRoutes);
+app.route("/api/organizations/:organizationId/status-pages/:statusPageId/branding", brandingRoutes);
 
 export default app;

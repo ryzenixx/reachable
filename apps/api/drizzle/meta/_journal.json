@@ -176,6 +176,13 @@
       "when": 1793219498919,
       "tag": "0024_eminent_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793220234170,
+      "tag": "0025_broken_sister_grimm",
+      "breakpoints": true
     }
   ]
 }

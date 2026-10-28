@@ -6,6 +6,7 @@ import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionToken } from "../db/schema/subscription";
 import { hashToken, tokenUrl } from "../subscriptions/tokens";
 import { sendSubscriptionConfirmation } from "./email/messages";
+import { getPageEmailBrand } from "../branding/email";
 
 async function claimConfirmation() {
   return db.transaction(async (tx) => {
@@ -79,7 +80,8 @@ export async function processConfirmationDelivery() {
     }
     const attempts = delivery.attempts + 1;
     try {
-      await sendSubscriptionConfirmation(recipient.destination, page.name, tokenUrl("confirm", claim.confirm), tokenUrl("unsubscribe", claim.unsubscribe));
+      const brand = await getPageEmailBrand(tx, page.id, page.name);
+      await sendSubscriptionConfirmation(recipient.destination, page.name, tokenUrl("confirm", claim.confirm), tokenUrl("unsubscribe", claim.unsubscribe), brand);
     } catch {
       const failed = attempts >= 8;
       const delaySeconds = Math.min(60 * 2 ** (attempts - 1), 3600);

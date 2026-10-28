@@ -4,6 +4,8 @@ export type EmailNotification = {
   subject: string;
   text: string;
   html?: string;
+  replyTo?: string;
+  senderName?: string;
   inlineImages?: { filename: string; content: Buffer; cid: string }[];
 };
 

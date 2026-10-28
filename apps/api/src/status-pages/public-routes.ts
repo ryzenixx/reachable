@@ -10,8 +10,22 @@ import { db } from "../db";
 import { statusPage } from "../db/schema/status-page";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { getAsset } from "../branding/queries";
+import { assetKinds } from "../branding/validation";
 
 export const publicStatusPageRoutes = new Hono();
+
+publicStatusPageRoutes.get("/:slug/branding/assets/:kind", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const kind = z.enum(assetKinds).safeParse(c.req.param("kind"));
+  if (!kind.success) return c.json({ error: "Invalid asset kind" }, 400);
+  const [page] = await db.select({ id: statusPage.id }).from(statusPage)
+    .where(and(eq(statusPage.slug, c.req.param("slug")), eq(statusPage.published, true)));
+  if (!page) return c.json({ error: "Not found" }, 404);
+  const asset = await getAsset(page.id, kind.data, true);
+  if (!asset) return c.json({ error: "Not found" }, 404);
+  return new Response(new Uint8Array(asset.content), { headers: { "Content-Type": "image/png", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+});
 
 publicStatusPageRoutes.get("/:slug/components/:componentId/history", async (c) => {
   c.header("Cache-Control", "no-store");
