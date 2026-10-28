@@ -2,12 +2,12 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db";
-import { confirmationDelivery, deliveryStatus, notificationDelivery } from "../db/schema/notification";
-import { subscription } from "../db/schema/subscription";
+import { confirmationDelivery, deliveryStatus, notificationDelivery, webhookFailureAlert } from "../db/schema/notification";
+import { subscription, webhookSubscription } from "../db/schema/subscription";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { encodeCursor, parseHistoryQuery } from "../history/pagination";
-import { retryNotification } from "./retry";
+import { retryNotification, retryWebhookFailureAlert } from "./retry";
 
 export const notificationRoutes = new Hono<OrganizationContext>();
 notificationRoutes.use("*", requireOrganization);
@@ -86,6 +86,35 @@ notificationRoutes.get("/deliveries", requireOrganizationAdmin, async (c) => {
     nextCursor: rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null });
 });
 
+notificationRoutes.get("/webhook-alerts", requireOrganizationAdmin, async (c) => {
+  c.header("Cache-Control", "no-store");
+  const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
+  if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
+  const url = new URL(c.req.url);
+  if (url.searchParams.getAll("status").length > 1) return c.json({ error: "Invalid query parameters" }, 400);
+  const status = z.enum(deliveryStatus.enumValues).optional().safeParse(url.searchParams.get("status") ?? undefined);
+  url.searchParams.delete("status");
+  const options = parseHistoryQuery(url.toString(), ["all"] as const);
+  if (!status.success || !options) return c.json({ error: "Invalid query parameters" }, 400);
+  if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
+  const rows = await db.select({ id: webhookFailureAlert.id, subscriptionId: webhookFailureAlert.subscriptionId,
+    deliveryId: webhookFailureAlert.deliveryId, failureCode: webhookFailureAlert.failureCode, responseCode: webhookFailureAlert.responseCode,
+    status: webhookFailureAlert.status, attempts: webhookFailureAlert.attempts, cycleAttempts: webhookFailureAlert.cycleAttempts, reason: webhookFailureAlert.reason,
+    lastFailureCode: webhookFailureAlert.lastFailureCode, lastResponseCode: webhookFailureAlert.lastResponseCode,
+    nextAttemptAt: webhookFailureAlert.nextAttemptAt, createdAt: webhookFailureAlert.createdAt, processedAt: webhookFailureAlert.processedAt,
+    contactEmail: webhookSubscription.contactEmail,
+    cursorTimestamp: sql<string>`to_char(${webhookFailureAlert.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+  }).from(webhookFailureAlert).innerJoin(subscription, eq(subscription.id, webhookFailureAlert.subscriptionId))
+    .innerJoin(webhookSubscription, eq(webhookSubscription.subscriptionId, subscription.id))
+    .where(and(eq(subscription.statusPageId, pageId.data), status.data ? eq(webhookFailureAlert.status, status.data) : undefined,
+      options.cursor ? sql`(${webhookFailureAlert.createdAt}, ${webhookFailureAlert.id}) < (${options.cursor.timestamp}::timestamptz, ${options.cursor.id}::uuid)` : undefined))
+    .orderBy(desc(webhookFailureAlert.createdAt), desc(webhookFailureAlert.id)).limit(options.limit + 1);
+  const selected = rows.slice(0, options.limit);
+  const last = selected.at(-1);
+  return c.json({ data: selected.map(({ cursorTimestamp: _, ...item }) => item),
+    nextCursor: rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null });
+});
+
 notificationRoutes.post("/deliveries/:deliveryId/retry", requireOrganizationAdmin, async (c) => {
   c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
@@ -93,6 +122,18 @@ notificationRoutes.post("/deliveries/:deliveryId/retry", requireOrganizationAdmi
   if (!pageId.success || !deliveryId.success) return c.json({ error: "Invalid ID" }, 400);
   if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
   const result = await retryNotification(pageId.data, deliveryId.data, c.get("userId"));
+  if (result === "not_found") return c.json({ error: "Not found" }, 404);
+  if (result !== "queued") return c.json({ error: result }, 409);
+  return c.json({ status: "pending" }, 202);
+});
+
+notificationRoutes.post("/webhook-alerts/:alertId/retry", requireOrganizationAdmin, async (c) => {
+  c.header("Cache-Control", "no-store");
+  const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
+  const alertId = z.uuid().safeParse(c.req.param("alertId"));
+  if (!pageId.success || !alertId.success) return c.json({ error: "Invalid ID" }, 400);
+  if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
+  const result = await retryWebhookFailureAlert(pageId.data, alertId.data, c.get("userId"));
   if (result === "not_found") return c.json({ error: "Not found" }, 404);
   if (result !== "queued") return c.json({ error: result }, 409);
   return c.json({ status: "pending" }, 202);

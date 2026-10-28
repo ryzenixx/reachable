@@ -218,6 +218,13 @@
       "when": 1793223519400,
       "tag": "0030_remarkable_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793224394371,
+      "tag": "0031_condemned_ender_wiggin",
+      "breakpoints": true
     }
   ]
 }

@@ -95,3 +95,19 @@ export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl,
     {webhookUrl && <Text style={paragraphStyle}>Webhook endpoint: {webhookUrl}</Text>}
   </ActionEmail>;
 }
+
+export function WebhookFailureEmail({ pageName, host, failureCode, responseCode, manageUrl, unsubscribeUrl, brand }: {
+  pageName: string; host: string; failureCode: string; responseCode: number | null; manageUrl?: string; unsubscribeUrl: string; brand: PageEmailBrand;
+}) {
+  const reasons: Record<string, string> = { destination: "The endpoint address is not allowed", dns: "The endpoint could not be resolved",
+    timeout: "The endpoint timed out", http: "The endpoint returned an unsuccessful HTTP response", tls: "The secure connection failed",
+    network: "The endpoint could not be reached", configuration: "The delivery configuration is unavailable", delivery_failed: "The delivery failed" };
+  const reason = reasons[failureCode] ?? reasons.delivery_failed;
+  return <ActionEmail preview={`A webhook delivery failed for ${pageName}`} heading="Webhook delivery failed" brand={brand}
+    actionLabel={manageUrl ? "Manage subscription" : undefined} actionUrl={manageUrl}
+    footer={<>{brand.footer && <BrandingFooter text={brand.footer} />}<Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
+    <Text style={paragraphStyle}>A status update from {pageName} could not be delivered to the webhook at {host}.</Text>
+    <Text style={paragraphStyle}>{reason}{responseCode !== null ? ` (${responseCode})` : ""}. Check your endpoint or contact the status page administrator.</Text>
+    <Text style={paragraphStyle}>Your subscription remains active, and future updates may still be delivered.</Text>
+  </ActionEmail>;
+}

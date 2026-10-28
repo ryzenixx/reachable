@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db";
-import { notificationDelivery } from "../db/schema/notification";
+import { notificationDelivery, webhookFailureAlert } from "../db/schema/notification";
 import { maintenance } from "../db/schema/maintenance";
 import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionComponent, subscriptionToken, webhookSubscription } from "../db/schema/subscription";
@@ -118,6 +118,21 @@ export async function processNotificationDelivery() {
         nextAttemptAt: sql`now() + ${delaySeconds} * interval '1 second'`,
         processedAt: failed ? sql`clock_timestamp()` : null,
       }).where(eq(notificationDelivery.id, delivery.id));
+      if (failed && recipient.channel === "webhook") {
+        const [pendingAlert] = await tx.update(webhookFailureAlert).set({ deliveryId: delivery.id,
+          failureCode: failure.code, responseCode: failure.responseCode })
+          .where(and(eq(webhookFailureAlert.subscriptionId, recipient.id), eq(webhookFailureAlert.status, "pending")))
+          .returning({ id: webhookFailureAlert.id });
+        if (!pendingAlert) await tx.execute(sql`
+          insert into ${webhookFailureAlert} (subscription_id, delivery_id, failure_code, response_code)
+          select ${recipient.id}::uuid, ${delivery.id}::uuid, ${failure.code}, ${failure.responseCode}
+          where not exists (
+            select 1 from ${webhookFailureAlert} where ${webhookFailureAlert.subscriptionId} = ${recipient.id}::uuid
+              and (${webhookFailureAlert.status} = 'pending' or (${webhookFailureAlert.status} <> 'skipped'
+                and ${webhookFailureAlert.createdAt} > now() - interval '24 hours'))
+          ) on conflict do nothing
+        `);
+      }
       console.error(`Notification delivery ${delivery.id} failed${failed ? " permanently" : "; it will be retried"}`);
       return;
     }

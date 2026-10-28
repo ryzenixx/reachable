@@ -56,3 +56,26 @@ export const confirmationDelivery = pgTable("confirmation_delivery", {
   index("confirmation_delivery_subscription_idx").on(table.subscriptionId, table.createdAt, table.id),
   check("confirmation_delivery_attempts_check", sql`${table.attempts} >= 0`),
 ]);
+
+export const webhookFailureAlert = pgTable("webhook_failure_alert", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  subscriptionId: uuid("subscription_id").notNull().references(() => subscription.id, { onDelete: "cascade" }),
+  deliveryId: uuid("delivery_id").notNull().references(() => notificationDelivery.id, { onDelete: "cascade" }),
+  failureCode: text("failure_code").notNull(),
+  responseCode: integer("response_code"),
+  status: deliveryStatus("status").default("pending").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  cycleAttempts: integer("cycle_attempts").default(0).notNull(),
+  reason: text("reason"),
+  lastFailureCode: text("last_failure_code"),
+  lastResponseCode: integer("last_response_code"),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`clock_timestamp()`).notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+}, (table) => [
+  index("webhook_failure_alert_pending_idx").on(table.nextAttemptAt, table.id).where(sql`${table.status} = 'pending'`),
+  index("webhook_failure_alert_subscription_idx").on(table.subscriptionId, table.createdAt, table.id),
+  uniqueIndex("webhook_failure_alert_one_pending_idx").on(table.subscriptionId).where(sql`${table.status} = 'pending'`),
+  check("webhook_failure_alert_attempts_check", sql`${table.attempts} >= 0`),
+  check("webhook_failure_alert_cycle_attempts_check", sql`${table.cycleAttempts} >= 0 and ${table.cycleAttempts} <= ${table.attempts}`),
+]);

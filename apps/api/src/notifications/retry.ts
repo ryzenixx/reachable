@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { notificationDelivery } from "../db/schema/notification";
+import { notificationDelivery, webhookFailureAlert } from "../db/schema/notification";
 import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription } from "../db/schema/subscription";
 import { recordPageActivity } from "../activity/record";
@@ -56,6 +56,31 @@ export async function retryNotification(pageId: string, deliveryId: string, acto
       .where(eq(notificationDelivery.id, deliveryId));
     await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "notification.retry_requested",
       resourceType: "notification_delivery", resourceId: deliveryId, details: { attempts: delivery.notification_delivery.attempts } });
+    return "queued" as const;
+  });
+}
+
+export async function retryWebhookFailureAlert(pageId: string, alertId: string, actorId: string) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select({ alert: webhookFailureAlert }).from(webhookFailureAlert)
+      .innerJoin(subscription, eq(subscription.id, webhookFailureAlert.subscriptionId))
+      .where(and(eq(webhookFailureAlert.id, alertId), eq(subscription.statusPageId, pageId)))
+      .for("update", { of: webhookFailureAlert });
+    if (!row) return "not_found" as const;
+    if (row.alert.status !== "failed") return "not_failed" as const;
+    const [recipient] = await tx.select().from(subscription).where(eq(subscription.id, row.alert.subscriptionId)).for("update");
+    if (!recipient?.confirmedAt || recipient.channel !== "webhook") return "unavailable" as const;
+    const [source] = await tx.select({ status: notificationDelivery.status }).from(notificationDelivery)
+      .where(and(eq(notificationDelivery.id, row.alert.deliveryId), eq(notificationDelivery.subscriptionId, recipient.id)))
+      .for("share", { skipLocked: true });
+    if (!source || source.status !== "failed") return "unavailable" as const;
+    const [pending] = await tx.select({ id: webhookFailureAlert.id }).from(webhookFailureAlert)
+      .where(and(eq(webhookFailureAlert.subscriptionId, recipient.id), eq(webhookFailureAlert.status, "pending"))).limit(1);
+    if (pending) return "already_pending" as const;
+    await tx.update(webhookFailureAlert).set({ status: "pending", cycleAttempts: 0, reason: null, nextAttemptAt: sql`now()`, processedAt: null })
+      .where(eq(webhookFailureAlert.id, alertId));
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "webhook_alert.retry_requested",
+      resourceType: "webhook_failure_alert", resourceId: alertId, details: { attempts: row.alert.attempts } });
     return "queued" as const;
   });
 }

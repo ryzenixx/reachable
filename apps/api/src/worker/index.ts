@@ -3,6 +3,7 @@ import { processDueMaintenance, processDueMaintenanceReminder } from "../mainten
 import { processNotificationDelivery } from "../notifications/delivery";
 import { processConfirmationDelivery } from "../notifications/confirmation-delivery";
 import { processAuthEmailDelivery } from "../notifications/auth-email/delivery";
+import { processWebhookFailureAlert } from "../notifications/webhook-alert";
 
 const shutdown = new AbortController();
 process.once("SIGINT", () => shutdown.abort());
@@ -22,6 +23,13 @@ while (!shutdown.signal.aborted) {
     }
   } catch (error) {
     console.error("Failed to process subscription confirmations:", error);
+  }
+  try {
+    for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
+      if (!await processWebhookFailureAlert()) break;
+    }
+  } catch (error) {
+    console.error("Failed to process webhook failure alerts:", error);
   }
   try {
     for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
