@@ -5,6 +5,7 @@ import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionRateLimit, subscriptionToken } from "../db/schema/subscription";
 import { sendSubscriptionConfirmation } from "../notifications/email/messages";
 import { hashToken, tokenUrl } from "./tokens";
+import { recordPageActivity } from "../activity/record";
 
 export async function getPublicChannels(slug: string) {
   const [page] = await db.select({ organizationId: statusPage.organizationId }).from(statusPage)
@@ -50,6 +51,7 @@ export async function requestEmailSubscription(slug: string, email: string) {
       { hash: hashToken(unsubscribe), subscriptionId: entry.id, purpose: "unsubscribe" },
     ]);
     await sendSubscriptionConfirmation(email, page.name, tokenUrl("confirm", confirm), tokenUrl("unsubscribe", unsubscribe));
+    if (!existing) await recordPageActivity(tx, page.id, { actor: { type: "subscriber" }, action: "subscription.requested", resourceType: "subscription", resourceId: entry.id, details: { channel: "email" } });
     return "accepted" as const;
   });
 }
@@ -69,6 +71,7 @@ export async function useSubscriptionToken(token: string, purpose: "confirm" | "
     if (!valid) return false;
     if (purpose === "unsubscribe") {
       await tx.delete(subscription).where(eq(subscription.id, locked.id));
+      await recordPageActivity(tx, locked.statusPageId, { actor: { type: "subscriber" }, action: "subscription.removed", resourceType: "subscription", resourceId: locked.id, details: { channel: locked.channel } });
       return true;
     }
     const [enabled] = await tx.select({ id: statusPage.id }).from(statusPage)
@@ -78,6 +81,7 @@ export async function useSubscriptionToken(token: string, purpose: "confirm" | "
     if (!enabled) return false;
     await tx.update(subscription).set({ confirmedAt: sql`coalesce(${subscription.confirmedAt}, now())` }).where(eq(subscription.id, locked.id));
     await tx.delete(subscriptionToken).where(and(eq(subscriptionToken.subscriptionId, locked.id), eq(subscriptionToken.purpose, "confirm")));
+    if (!locked.confirmedAt) await recordPageActivity(tx, locked.statusPageId, { actor: { type: "subscriber" }, action: "subscription.confirmed", resourceType: "subscription", resourceId: locked.id, details: { channel: locked.channel } });
     return true;
   });
 }

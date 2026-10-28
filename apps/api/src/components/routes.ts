@@ -32,7 +32,7 @@ componentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = createComponentSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const created = await createComponent(c.get("statusPageId"), parsed.data);
+  const created = await createComponent(c.get("statusPageId"), parsed.data, c.get("userId"));
   if (created === "invalid_group") return c.json({ error: "Invalid component group" }, 400);
   return c.json(created, 201);
 });
@@ -46,7 +46,7 @@ componentRoutes.patch("/:componentId", requireOrganizationAdmin, async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = updateComponentSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const updated = await updateComponent(c.get("statusPageId"), componentId.data, parsed.data);
+  const updated = await updateComponent(c.get("statusPageId"), componentId.data, parsed.data, c.get("userId"));
   if (!updated) return c.json({ error: "Not found" }, 404);
   if (updated === "invalid_group") return c.json({ error: "Invalid component group" }, 400);
   return c.json(updated);
@@ -55,7 +55,7 @@ componentRoutes.patch("/:componentId", requireOrganizationAdmin, async (c) => {
 componentRoutes.delete("/:componentId", requireOrganizationAdmin, async (c) => {
   const componentId = componentIdSchema.safeParse(c.req.param("componentId"));
   if (!componentId.success) return c.json({ error: "Invalid component ID" }, 400);
-  const result = await deleteComponent(c.get("statusPageId"), componentId.data);
+  const result = await deleteComponent(c.get("statusPageId"), componentId.data, c.get("userId"));
   if (result === "not_found") return c.json({ error: "Not found" }, 404);
   if (result === "in_use") return c.json({ error: "Component is linked to an incident or maintenance" }, 409);
   return c.body(null, 204);

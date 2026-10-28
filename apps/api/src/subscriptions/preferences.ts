@@ -4,6 +4,7 @@ import { component } from "../db/schema/component";
 import { statusPage } from "../db/schema/status-page";
 import { subscription, subscriptionComponent, subscriptionToken } from "../db/schema/subscription";
 import { hashToken } from "./tokens";
+import { recordPageActivity } from "../activity/record";
 
 export type SubscriptionPreferences = { scope: "all" } | { scope: "selected"; componentIds: string[] };
 
@@ -55,6 +56,7 @@ export async function setSubscriptionPreferences(token: string, input: Subscript
     if (input.scope === "selected") await tx.insert(subscriptionComponent)
       .values(input.componentIds.map((componentId) => ({ subscriptionId: id, componentId })));
     await tx.update(subscription).set({ allComponents: input.scope === "all" }).where(eq(subscription.id, id));
+    await recordPageActivity(tx, current.statusPageId, { actor: { type: "subscriber" }, action: "subscription.preferences_updated", resourceType: "subscription", resourceId: id, details: { scope: input.scope } });
     return "updated" as const;
   });
 }

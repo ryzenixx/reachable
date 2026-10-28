@@ -7,8 +7,9 @@ import { postmortem } from "../db/schema/postmortem";
 import type { CreateHistoricalIncident, CreateIncident, CreateIncidentUpdate, IncidentHistoryQuery } from "./validation";
 import { enqueueStatusNotification } from "../notifications/queue";
 import { encodeCursor } from "../history/pagination";
+import { recordPageActivity } from "../activity/record";
 
-export async function createIncident(pageId: string, input: CreateIncident) {
+export async function createIncident(pageId: string, input: CreateIncident, actorId: string) {
   return db.transaction(async (tx) => {
     const componentIds = input.components.map((entry) => entry.componentId);
     let components: { id: string; name: string }[] = [];
@@ -46,11 +47,12 @@ export async function createIncident(pageId: string, input: CreateIncident) {
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "incident", title: created.title, status: input.status, message: input.message, componentIds,
     });
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "incident.created", resourceType: "incident", resourceId: created.id, details: { status: input.status, notified: input.notifySubscribers ?? false } });
     return created;
   });
 }
 
-export async function createHistoricalIncident(pageId: string, input: CreateHistoricalIncident) {
+export async function createHistoricalIncident(pageId: string, input: CreateHistoricalIncident, actorId: string) {
   return db.transaction(async (tx) => {
     const componentIds = input.components.map((entry) => entry.componentId);
     const components = componentIds.length
@@ -73,11 +75,12 @@ export async function createHistoricalIncident(pageId: string, input: CreateHist
         updateId: update.id, componentId, name: components.find((entry) => entry.id === componentId)!.name, impact: status,
       })));
     }
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "incident.backfilled", resourceType: "incident", resourceId: created.id });
     return created;
   });
 }
 
-export async function addIncidentUpdate(pageId: string, incidentId: string, input: CreateIncidentUpdate) {
+export async function addIncidentUpdate(pageId: string, incidentId: string, input: CreateIncidentUpdate, actorId: string) {
   return db.transaction(async (tx) => {
     const [existing] = await tx.select({ id: incident.id, title: incident.title, occurredAt: incident.occurredAt }).from(incident)
       .where(and(eq(incident.id, incidentId), eq(incident.statusPageId, pageId)))
@@ -141,6 +144,7 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
       kind: "incident", title: existing.title, status: input.status, message: input.message,
       componentIds: [...new Set([...currentIds, ...finalIds])],
     });
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "incident.updated", resourceType: "incident", resourceId: incidentId, details: { updateId: update.id, status: input.status, notified: input.notifySubscribers ?? false } });
     return update;
   });
 }

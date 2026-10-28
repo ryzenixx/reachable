@@ -4,6 +4,7 @@ import { incident, incidentComponent, incidentUpdate, incidentUpdateComponent } 
 import { notificationDelivery } from "../db/schema/notification";
 import { postmortem, postmortemPublication } from "../db/schema/postmortem";
 import { enqueueStatusNotification } from "../notifications/queue";
+import { recordPageActivity } from "../activity/record";
 
 export async function getPostmortem(pageId: string, incidentId: string) {
   const [entry] = await db.select({ postmortem }).from(postmortem)
@@ -30,6 +31,7 @@ export async function savePostmortem(pageId: string, incidentId: string, actorId
     const [saved] = await tx.insert(postmortem).values({ incidentId, draft, draftUpdatedBy: actorId })
       .onConflictDoUpdate({ target: postmortem.incidentId, set: { draft, draftUpdatedBy: actorId, updatedAt: sql`clock_timestamp()` } })
       .returning();
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "postmortem.saved", resourceType: "incident", resourceId: incidentId });
     return saved;
   });
 }
@@ -76,6 +78,7 @@ export async function publishPostmortem(pageId: string, incidentId: string, acto
         kind: "postmortem", title: current.title, status: current.status, message: entry.draft, componentIds,
       });
     }
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "postmortem.published", resourceType: "incident", resourceId: incidentId, details: { publicationId: publication.id, notified: notifySubscribers } });
     return published;
   });
 }

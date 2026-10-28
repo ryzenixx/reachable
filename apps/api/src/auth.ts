@@ -5,6 +5,7 @@ import { db } from "./db";
 import * as schema from "./db/schema/auth";
 import { sendOrganizationInvitation, sendPasswordResetEmail, sendVerificationEmail } from "./notifications/email/messages";
 import { invitationUrl } from "./organizations/invitations";
+import { organizationActivityHooks } from "./activity/auth-hooks";
 
 export const auth = betterAuth({
   advanced: {
@@ -25,6 +26,7 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => sendVerificationEmail(user.email, url),
   },
   plugins: [organization({
+    organizationHooks: organizationActivityHooks,
     requireEmailVerificationOnInvitation: true,
     sendInvitationEmail: async ({ id, email, organization, inviter }) =>
       sendOrganizationInvitation(email, organization.name, inviter.user.name, invitationUrl(id)),

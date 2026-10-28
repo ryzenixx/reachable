@@ -4,6 +4,7 @@ import { incidentEdit } from "../db/schema/content-edit";
 import { incident, incidentUpdate } from "../db/schema/incident";
 import { postmortem, postmortemPublication } from "../db/schema/postmortem";
 import { correctPendingNotifications } from "../notifications/corrections";
+import { recordPageActivity } from "../activity/record";
 
 export async function editIncidentTitle(pageId: string, incidentId: string, actorId: string, title: string) {
   return db.transaction(async (tx) => {
@@ -18,6 +19,7 @@ export async function editIncidentTitle(pageId: string, incidentId: string, acto
       union all select ${postmortemPublication.id} from ${postmortemPublication}
       inner join ${postmortem} on ${postmortem.id} = ${postmortemPublication.postmortemId}
       where ${postmortem.incidentId} = ${incidentId}::uuid`, "title", title);
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "incident.corrected", resourceType: "incident", resourceId: incidentId, details: { field: "title" } });
     return updated;
   });
 }
@@ -37,6 +39,7 @@ export async function editIncidentMessage(pageId: string, incidentId: string, up
     await tx.update(incident).set({ updatedAt: sql`clock_timestamp()` }).where(eq(incident.id, incidentId));
     await tx.insert(incidentEdit).values({ incidentId, updateId, field: "message", previousValue: update.message, newValue: message, actorId });
     await correctPendingNotifications(tx, sql`select ${updateId}::uuid`, "message", message);
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "incident.corrected", resourceType: "incident", resourceId: incidentId, details: { field: "message", updateId } });
     return updated;
   });
 }

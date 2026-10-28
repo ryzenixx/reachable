@@ -11,6 +11,8 @@ import { statusPageRoutes } from "./status-pages/routes";
 import { publicStatusPageRoutes } from "./status-pages/public-routes";
 import { getApplicationUrl } from "./organizations/invitations";
 import { resolvePublicSlug } from "./status-pages/queries";
+import { activityRoutes } from "./activity/routes";
+import { withAuthActor } from "./activity/auth-context";
 
 const app = new Hono();
 
@@ -21,7 +23,11 @@ app.use("/api/auth/organization/invite-member", async (c, next) => {
   }
   await next();
 });
-app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
+app.all("/api/auth/*", async (c) => {
+  if (!new URL(c.req.url).pathname.startsWith("/api/auth/organization/")) return auth.handler(c.req.raw);
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  return withAuthActor(session?.user.id ?? null, () => auth.handler(c.req.raw));
+});
 app.use("/api/public/status-pages/:slug/*", async (c, next) => {
   const slug = c.req.param("slug");
   const canonical = await resolvePublicSlug(slug);
@@ -38,6 +44,7 @@ app.route("/api/public/status-pages", publicStatusPageRoutes);
 app.route("/api/public/status-pages", publicSubscriptionRoutes);
 app.route("/api/subscriptions", subscriptionActionRoutes);
 app.route("/api/organizations/:organizationId/notification-channels", channelRoutes);
+app.route("/api/organizations/:organizationId/activity", activityRoutes);
 app.route("/api/organizations/:organizationId/status-pages", statusPageRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/components", componentRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/component-groups", componentGroupRoutes);

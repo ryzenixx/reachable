@@ -3,6 +3,7 @@ import { db } from "../db";
 import { maintenanceEdit } from "../db/schema/content-edit";
 import { maintenance, maintenanceReminder, maintenanceUpdate } from "../db/schema/maintenance";
 import { correctPendingNotifications } from "../notifications/corrections";
+import { recordPageActivity } from "../activity/record";
 
 export async function editMaintenanceTitle(pageId: string, maintenanceId: string, actorId: string, title: string) {
   return db.transaction(async (tx) => {
@@ -15,6 +16,7 @@ export async function editMaintenanceTitle(pageId: string, maintenanceId: string
     await tx.insert(maintenanceEdit).values({ maintenanceId, field: "title", previousValue: current.title, newValue: title, actorId });
     await correctPendingNotifications(tx, sql`select ${maintenanceUpdate.id} from ${maintenanceUpdate} where ${maintenanceUpdate.maintenanceId} = ${maintenanceId}::uuid`, "title", title);
     await correctPendingNotifications(tx, sql`select ${maintenanceReminder.id} from ${maintenanceReminder} where ${maintenanceReminder.maintenanceId} = ${maintenanceId}::uuid`, "title", title);
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "maintenance.corrected", resourceType: "maintenance", resourceId: maintenanceId, details: { field: "title" } });
     return updated;
   });
 }
@@ -32,6 +34,7 @@ export async function editMaintenanceMessage(pageId: string, maintenanceId: stri
     await tx.update(maintenance).set({ updatedAt: sql`clock_timestamp()` }).where(eq(maintenance.id, maintenanceId));
     await tx.insert(maintenanceEdit).values({ maintenanceId, updateId, field: "message", previousValue: update.message, newValue: message, actorId });
     await correctPendingNotifications(tx, sql`select ${updateId}::uuid`, "message", message);
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "maintenance.corrected", resourceType: "maintenance", resourceId: maintenanceId, details: { field: "message", updateId } });
     return updated;
   });
 }

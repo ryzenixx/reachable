@@ -61,7 +61,7 @@ maintenanceRoutes.post("/", requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = createMaintenanceSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const created = await createMaintenance(c.get("statusPageId"), parsed.data);
+  const created = await createMaintenance(c.get("statusPageId"), parsed.data, c.get("userId"));
   if (!created) return c.json({ error: "Invalid components" }, 400);
   return c.json(created, 201);
 });
@@ -72,7 +72,7 @@ maintenanceRoutes.post("/:maintenanceId/updates", requireOrganizationAdmin, asyn
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = createMaintenanceUpdateSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const update = await addMaintenanceUpdate(c.get("statusPageId"), id.data, parsed.data);
+  const update = await addMaintenanceUpdate(c.get("statusPageId"), id.data, parsed.data, c.get("userId"));
   if (!update) return c.json({ error: "Not found" }, 404);
   if (update === "completed") return c.json({ error: "Completed maintenance cannot be reopened" }, 409);
   if (update === "cancelled") return c.json({ error: "Cancelled maintenance cannot be reopened" }, 409);

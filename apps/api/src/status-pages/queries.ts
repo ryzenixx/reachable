@@ -8,6 +8,7 @@ import { maintenance, maintenanceComponent } from "../db/schema/maintenance";
 import { effectiveComponentStatus } from "../components/status";
 import type { CreateStatusPage, UpdateStatusPage } from "./validation";
 import { summarizeStatus } from "./status";
+import { recordPageActivity } from "../activity/record";
 
 export function listStatusPages(organizationId: string) {
   return db.select().from(statusPage)
@@ -22,7 +23,7 @@ export async function pageBelongsToOrganization(pageId: string, organizationId: 
   return Boolean(page);
 }
 
-export async function createStatusPage(organizationId: string, input: CreateStatusPage) {
+export async function createStatusPage(organizationId: string, input: CreateStatusPage, actorId: string) {
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`reachable:status-page-slug:${input.slug}`}, 0))`);
     const [taken] = await tx.select({ slug: statusPageSlug.slug }).from(statusPageSlug).where(eq(statusPageSlug.slug, input.slug));
@@ -31,6 +32,7 @@ export async function createStatusPage(organizationId: string, input: CreateStat
       .onConflictDoNothing({ target: statusPage.slug }).returning();
     if (!page) return undefined;
     await tx.insert(statusPageSlug).values({ slug: page.slug, statusPageId: page.id });
+    await recordPageActivity(tx, page.id, { actor: { type: "member", id: actorId }, action: "status_page.created", resourceType: "status_page", resourceId: page.id });
     return page;
   });
 }
@@ -46,7 +48,7 @@ export async function getStatusPage(organizationId: string, pageId: string) {
   return page;
 }
 
-export async function updateStatusPage(organizationId: string, pageId: string, input: UpdateStatusPage) {
+export async function updateStatusPage(organizationId: string, pageId: string, input: UpdateStatusPage, actorId: string) {
   return db.transaction(async (tx) => {
     if (input.slug) await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`reachable:status-page-slug:${input.slug}`}, 0))`);
     const [current] = await tx.select().from(statusPage)
@@ -58,6 +60,8 @@ export async function updateStatusPage(organizationId: string, pageId: string, i
       if (!reserved) return "slug_taken" as const;
     }
     const [updated] = await tx.update(statusPage).set(input).where(eq(statusPage.id, current.id)).returning();
+    const fields = (Object.keys(input) as (keyof UpdateStatusPage)[]).filter((field) => input[field] !== current[field]);
+    if (fields.length) await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "status_page.updated", resourceType: "status_page", resourceId: pageId, details: { fields } });
     return updated;
   });
 }
@@ -69,11 +73,15 @@ export async function resolvePublicSlug(slug: string) {
   return page?.slug;
 }
 
-export async function setStatusPagePublication(organizationId: string, pageId: string, published: boolean) {
-  const [page] = await db.update(statusPage).set({ published })
-    .where(and(eq(statusPage.id, pageId), eq(statusPage.organizationId, organizationId)))
-    .returning();
-  return page;
+export async function setStatusPagePublication(organizationId: string, pageId: string, published: boolean, actorId: string) {
+  return db.transaction(async (tx) => {
+    const [current] = await tx.select().from(statusPage)
+      .where(and(eq(statusPage.id, pageId), eq(statusPage.organizationId, organizationId))).for("update");
+    if (!current || current.published === published) return current;
+    const [page] = await tx.update(statusPage).set({ published }).where(eq(statusPage.id, pageId)).returning();
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: published ? "status_page.published" : "status_page.unpublished", resourceType: "status_page", resourceId: pageId });
+    return page;
+  });
 }
 
 export async function getPublicStatusPage(slug: string) {

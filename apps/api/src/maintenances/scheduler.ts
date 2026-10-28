@@ -3,6 +3,7 @@ import { db } from "../db";
 import { component } from "../db/schema/component";
 import { maintenance, maintenanceComponent, maintenanceReminder, maintenanceUpdate, maintenanceUpdateComponent } from "../db/schema/maintenance";
 import { enqueueStatusNotification } from "../notifications/queue";
+import { recordPageActivity } from "../activity/record";
 
 export async function processDueMaintenance() {
   return db.transaction(async (tx) => {
@@ -33,6 +34,7 @@ export async function processDueMaintenance() {
       startsAt: current.startsAt.toISOString(), endsAt: current.endsAt.toISOString(),
       componentIds: components.map((entry) => entry.componentId),
     });
+    await recordPageActivity(tx, current.statusPageId, { actor: { type: "system" }, action: "maintenance.auto_transitioned", resourceType: "maintenance", resourceId: current.id, details: { updateId: update.id, status, notified: current.notifyOnAutoTransition } });
     return true;
   });
 }
@@ -56,6 +58,7 @@ export async function processDueMaintenanceReminder() {
       message: "This scheduled maintenance will begin soon.", startsAt: current.startsAt.toISOString(),
       endsAt: current.endsAt.toISOString(), componentIds: components.map(({ id }) => id),
     });
+    await recordPageActivity(tx, current.statusPageId, { actor: { type: "system" }, action: "maintenance.reminder_queued", resourceType: "maintenance", resourceId: current.id, details: { reminderId: reminder.id } });
     return true;
   });
 }
