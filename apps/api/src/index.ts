@@ -9,7 +9,7 @@ import { channelRoutes } from "./subscriptions/channels";
 import { publicSubscriptionRoutes, subscriptionActionRoutes } from "./subscriptions/routes";
 import { statusPageRoutes } from "./status-pages/routes";
 import { publicStatusPageRoutes } from "./status-pages/public-routes";
-import { getApplicationUrl } from "./organizations/invitations";
+import { getApplicationUrl } from "./config/urls";
 import { resolvePublicSlug } from "./status-pages/queries";
 import { activityRoutes } from "./activity/routes";
 import { withAuthActor } from "./activity/auth-context";
@@ -19,10 +19,13 @@ import { brandingRoutes } from "./branding/routes";
 import { templateRoutes } from "./templates/routes";
 import { apiKeyRoutes } from "./api-keys/routes";
 import { integrationRoutes } from "./api-keys/integration-routes";
+import { apiCors, protectOrganizationOrigin } from "./http/origins";
 
 const app = new Hono();
 
 app.get("/", (c) => c.text("Hello Hono!"));
+app.use("/api/*", apiCors);
+app.use("/api/organizations/*", protectOrganizationOrigin);
 app.use("/api/auth/organization/invite-member", async (c, next) => {
   if (c.req.method === "POST" && !getApplicationUrl()) {
     return c.json({ error: "Invitation email is not configured" }, 503);
