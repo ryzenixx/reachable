@@ -3,6 +3,7 @@ import { request } from "node:https";
 import { isIP } from "node:net";
 import { createHmac } from "node:crypto";
 import { Address4, Address6 } from "ip-address";
+import { DeliveryFailure } from "../notifications/failures";
 
 export function parseWebhookUrl(value: string) {
   try {
@@ -23,15 +24,15 @@ function isPublicAddress(address: string) {
 
 export async function sendWebhook(destination: string, secret: string, eventId: string, body: string) {
   const url = parseWebhookUrl(destination);
-  if (!url) throw new Error("Invalid webhook URL");
+  if (!url) throw new DeliveryFailure("destination");
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   const family = isIP(hostname);
   let timer: ReturnType<typeof setTimeout> | undefined;
   const records = family ? [{ address: hostname, family }] : await Promise.race([
     lookup(hostname, { all: true }),
-    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("DNS timeout")), 5000); }),
+    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new DeliveryFailure("timeout")), 5000); }),
   ]).finally(() => clearTimeout(timer));
-  if (!records.length || records.some(({ address }) => !isPublicAddress(address))) throw new Error("Forbidden webhook destination");
+  if (!records.length || records.some(({ address }) => !isPublicAddress(address))) throw new DeliveryFailure("destination");
   const selected = records[0];
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = createHmac("sha256", Buffer.from(secret.slice(6), "base64"))
@@ -49,9 +50,9 @@ export async function sendWebhook(destination: string, secret: string, eventId: 
     }, (response) => {
       response.resume();
       if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) resolve();
-      else reject(new Error("Webhook rejected"));
+      else reject(new DeliveryFailure("http", response.statusCode));
     });
-    const timer = setTimeout(() => req.destroy(new Error("Webhook timeout")), 10000);
+    const timer = setTimeout(() => req.destroy(new DeliveryFailure("timeout")), 10000);
     req.on("close", () => clearTimeout(timer));
     req.on("error", reject);
     req.end(body);

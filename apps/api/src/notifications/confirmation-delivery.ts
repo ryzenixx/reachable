@@ -7,6 +7,7 @@ import { organizationChannel, subscription, subscriptionToken, webhookSubscripti
 import { hashToken, tokenUrl } from "../subscriptions/tokens";
 import { sendSubscriptionConfirmation } from "./email/messages";
 import { getPageEmailBrand } from "../branding/email";
+import { describeFailure } from "./failures";
 
 async function claimConfirmation() {
   return db.transaction(async (tx) => {
@@ -86,10 +87,12 @@ export async function processConfirmationDelivery() {
       if (recipient.channel === "webhook" && !webhook) throw new Error("Webhook subscription is missing");
       await sendSubscriptionConfirmation(webhook?.contactEmail ?? recipient.destination, page.name, tokenUrl("confirm", claim.confirm), tokenUrl("unsubscribe", claim.unsubscribe), tokenUrl("manage", claim.unsubscribe), brand, false,
         webhook ? recipient.destination : undefined, Boolean(recipient.confirmedAt));
-    } catch {
-      const failed = attempts >= 8;
+    } catch (error) {
+      const failure = describeFailure(error, "email");
+      const failed = failure.permanent || attempts >= 8;
       const delaySeconds = Math.min(60 * 2 ** (attempts - 1), 3600);
       await tx.update(confirmationDelivery).set({ status: failed ? "failed" : "pending", reason: "delivery_failed", attempts,
+        lastFailureCode: failure.code, lastResponseCode: failure.responseCode, lastFailureAt: sql`clock_timestamp()`,
         nextAttemptAt: sql`now() + ${delaySeconds} * interval '1 second'`, processedAt: failed ? sql`clock_timestamp()` : null,
       }).where(eq(confirmationDelivery.id, delivery.id));
       console.error(`Subscription confirmation ${delivery.id} failed${failed ? " permanently" : "; it will be retried"}`);

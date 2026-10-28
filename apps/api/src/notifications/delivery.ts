@@ -10,6 +10,7 @@ import { sendStatusUpdate } from "./email/messages";
 import { getPageEmailBrand } from "../branding/email";
 import { sendWebhook } from "../webhooks/transport";
 import { readWebhookSecret } from "../webhooks/secrets";
+import { describeFailure } from "./failures";
 
 async function claimDelivery() {
   return db.transaction(async (tx) => {
@@ -94,6 +95,7 @@ export async function processNotificationDelivery() {
       return;
     }
     const attempts = delivery.attempts + 1;
+    const cycleAttempts = delivery.cycleAttempts + 1;
     try {
       if (recipient.channel === "email") {
         const brand = await getPageEmailBrand(tx, page.id, page.name);
@@ -106,18 +108,20 @@ export async function processNotificationDelivery() {
         await sendWebhook(recipient.destination, readWebhookSecret(webhook.encryptedSecret, recipient.id), delivery.eventId, body);
         await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
       }
-    } catch {
+    } catch (error) {
       if (recipient.channel === "webhook") await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
-      const failed = attempts >= 8;
-      const delaySeconds = Math.min(60 * 2 ** (attempts - 1), 3600);
-      await tx.update(notificationDelivery).set({ status: failed ? "failed" : "pending", attempts,
+      const failure = describeFailure(error, recipient.channel === "webhook" ? "webhook" : "email");
+      const failed = failure.permanent || cycleAttempts >= 8;
+      const delaySeconds = Math.min(60 * 2 ** (cycleAttempts - 1), 3600);
+      await tx.update(notificationDelivery).set({ status: failed ? "failed" : "pending", attempts, cycleAttempts,
+        lastFailureCode: failure.code, lastResponseCode: failure.responseCode, lastFailureAt: sql`clock_timestamp()`,
         nextAttemptAt: sql`now() + ${delaySeconds} * interval '1 second'`,
         processedAt: failed ? sql`clock_timestamp()` : null,
       }).where(eq(notificationDelivery.id, delivery.id));
       console.error(`Notification delivery ${delivery.id} failed${failed ? " permanently" : "; it will be retried"}`);
       return;
     }
-    await tx.update(notificationDelivery).set({ status: "sent", attempts, processedAt: sql`clock_timestamp()` })
+    await tx.update(notificationDelivery).set({ status: "sent", attempts, cycleAttempts, processedAt: sql`clock_timestamp()` })
       .where(eq(notificationDelivery.id, delivery.id));
   });
   return true;

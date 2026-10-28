@@ -23,6 +23,10 @@ export const notificationDelivery = pgTable("notification_delivery", {
   payload: jsonb("payload").$type<StatusNotification>().notNull(),
   status: deliveryStatus("status").default("pending").notNull(),
   attempts: integer("attempts").default(0).notNull(),
+  cycleAttempts: integer("cycle_attempts").default(0).notNull(),
+  lastFailureCode: text("last_failure_code"),
+  lastResponseCode: integer("last_response_code"),
+  lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
   nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`clock_timestamp()`).notNull(),
   processedAt: timestamp("processed_at", { withTimezone: true }),
@@ -31,6 +35,7 @@ export const notificationDelivery = pgTable("notification_delivery", {
   index("notification_delivery_pending_idx").on(table.nextAttemptAt, table.id).where(sql`${table.status} = 'pending'`),
   index("notification_delivery_subscription_pending_idx").on(table.subscriptionId, table.createdAt, table.id).where(sql`${table.status} = 'pending'`),
   check("notification_delivery_attempts_check", sql`${table.attempts} >= 0`),
+  check("notification_delivery_cycle_attempts_check", sql`${table.cycleAttempts} >= 0 and ${table.cycleAttempts} <= ${table.attempts}`),
 ]);
 
 export const confirmationDelivery = pgTable("confirmation_delivery", {
@@ -39,6 +44,9 @@ export const confirmationDelivery = pgTable("confirmation_delivery", {
   status: deliveryStatus("status").default("pending").notNull(),
   attempts: integer("attempts").default(0).notNull(),
   reason: text("reason"),
+  lastFailureCode: text("last_failure_code"),
+  lastResponseCode: integer("last_response_code"),
+  lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
   nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).default(sql`now() + interval '24 hours'`).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`clock_timestamp()`).notNull(),

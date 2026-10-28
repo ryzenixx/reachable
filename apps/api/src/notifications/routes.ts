@@ -7,6 +7,7 @@ import { subscription } from "../db/schema/subscription";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { encodeCursor, parseHistoryQuery } from "../history/pagination";
+import { retryNotification } from "./retry";
 
 export const notificationRoutes = new Hono<OrganizationContext>();
 notificationRoutes.use("*", requireOrganization);
@@ -23,6 +24,7 @@ notificationRoutes.get("/confirmations", requireOrganizationAdmin, async (c) => 
   if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
   const rows = await db.select({ id: confirmationDelivery.id, subscriptionId: confirmationDelivery.subscriptionId,
     status: confirmationDelivery.status, reason: confirmationDelivery.reason, attempts: confirmationDelivery.attempts,
+    lastFailureCode: confirmationDelivery.lastFailureCode, lastResponseCode: confirmationDelivery.lastResponseCode, lastFailureAt: confirmationDelivery.lastFailureAt,
     nextAttemptAt: confirmationDelivery.nextAttemptAt, expiresAt: confirmationDelivery.expiresAt,
     createdAt: confirmationDelivery.createdAt, processedAt: confirmationDelivery.processedAt,
     channel: subscription.channel, destination: subscription.destination,
@@ -37,6 +39,7 @@ notificationRoutes.get("/confirmations", requireOrganizationAdmin, async (c) => 
     nextCursor: rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null });
 });
 notificationRoutes.get("/", requireOrganizationAdmin, async (c) => {
+  c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
   const status = z.enum(deliveryStatus.enumValues).optional().safeParse(c.req.query("status"));
@@ -44,11 +47,53 @@ notificationRoutes.get("/", requireOrganizationAdmin, async (c) => {
   if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
   const deliveries = await db.select({
     id: notificationDelivery.id, eventId: notificationDelivery.eventId, status: notificationDelivery.status,
-    attempts: notificationDelivery.attempts, nextAttemptAt: notificationDelivery.nextAttemptAt,
+    attempts: notificationDelivery.attempts, cycleAttempts: notificationDelivery.cycleAttempts,
+    lastFailureCode: notificationDelivery.lastFailureCode, lastResponseCode: notificationDelivery.lastResponseCode, lastFailureAt: notificationDelivery.lastFailureAt,
+    nextAttemptAt: notificationDelivery.nextAttemptAt,
     createdAt: notificationDelivery.createdAt, processedAt: notificationDelivery.processedAt,
     channel: subscription.channel, destination: subscription.destination,
   }).from(notificationDelivery).innerJoin(subscription, eq(subscription.id, notificationDelivery.subscriptionId))
     .where(and(eq(subscription.statusPageId, pageId.data), status.data ? eq(notificationDelivery.status, status.data) : undefined))
     .orderBy(desc(notificationDelivery.createdAt), desc(notificationDelivery.id)).limit(100);
   return c.json(deliveries);
+});
+
+notificationRoutes.get("/deliveries", requireOrganizationAdmin, async (c) => {
+  c.header("Cache-Control", "no-store");
+  const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
+  if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
+  const url = new URL(c.req.url);
+  if (url.searchParams.getAll("status").length > 1) return c.json({ error: "Invalid query parameters" }, 400);
+  const status = z.enum(deliveryStatus.enumValues).optional().safeParse(url.searchParams.get("status") ?? undefined);
+  url.searchParams.delete("status");
+  const options = parseHistoryQuery(url.toString(), ["all"] as const);
+  if (!status.success || !options) return c.json({ error: "Invalid query parameters" }, 400);
+  if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
+  const rows = await db.select({ id: notificationDelivery.id, subscriptionId: subscription.id, eventId: notificationDelivery.eventId,
+    status: notificationDelivery.status, attempts: notificationDelivery.attempts, cycleAttempts: notificationDelivery.cycleAttempts,
+    lastFailureCode: notificationDelivery.lastFailureCode, lastResponseCode: notificationDelivery.lastResponseCode,
+    lastFailureAt: notificationDelivery.lastFailureAt, nextAttemptAt: notificationDelivery.nextAttemptAt,
+    createdAt: notificationDelivery.createdAt, processedAt: notificationDelivery.processedAt,
+    channel: subscription.channel, destination: subscription.destination,
+    cursorTimestamp: sql<string>`to_char(${notificationDelivery.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+  }).from(notificationDelivery).innerJoin(subscription, eq(subscription.id, notificationDelivery.subscriptionId))
+    .where(and(eq(subscription.statusPageId, pageId.data), status.data ? eq(notificationDelivery.status, status.data) : undefined,
+      options.cursor ? sql`(${notificationDelivery.createdAt}, ${notificationDelivery.id}) < (${options.cursor.timestamp}::timestamptz, ${options.cursor.id}::uuid)` : undefined))
+    .orderBy(desc(notificationDelivery.createdAt), desc(notificationDelivery.id)).limit(options.limit + 1);
+  const selected = rows.slice(0, options.limit);
+  const last = selected.at(-1);
+  return c.json({ data: selected.map(({ cursorTimestamp: _, ...item }) => item),
+    nextCursor: rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null });
+});
+
+notificationRoutes.post("/deliveries/:deliveryId/retry", requireOrganizationAdmin, async (c) => {
+  c.header("Cache-Control", "no-store");
+  const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
+  const deliveryId = z.uuid().safeParse(c.req.param("deliveryId"));
+  if (!pageId.success || !deliveryId.success) return c.json({ error: "Invalid ID" }, 400);
+  if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
+  const result = await retryNotification(pageId.data, deliveryId.data, c.get("userId"));
+  if (result === "not_found") return c.json({ error: "Not found" }, 404);
+  if (result !== "queued") return c.json({ error: result }, 409);
+  return c.json({ status: "pending" }, 202);
 });
