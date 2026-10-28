@@ -1,9 +1,10 @@
-import { and, eq, getTableColumns, notExists } from "drizzle-orm";
+import { and, eq, getTableColumns } from "drizzle-orm";
 import { db } from "../db";
 import { component } from "../db/schema/component";
 import { componentGroup } from "../db/schema/component-group";
 import { incidentComponent } from "../db/schema/incident";
 import { maintenanceComponent } from "../db/schema/maintenance";
+import { communicationTemplateComponent } from "../db/schema/template";
 import type { CreateComponent, UpdateComponent } from "./validation";
 import { effectiveComponentStatus } from "./status";
 import { recordPageActivity } from "../activity/record";
@@ -58,21 +59,18 @@ export async function updateComponent(pageId: string, componentId: string, input
 
 export async function deleteComponent(pageId: string, componentId: string, actorId: string) {
   return db.transaction(async (tx) => {
-    const [deleted] = await tx.delete(component)
-      .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId), notExists(
-        tx.select({ id: incidentComponent.incidentId }).from(incidentComponent)
-          .where(eq(incidentComponent.componentId, component.id)),
-      ), notExists(
-        tx.select({ id: maintenanceComponent.maintenanceId }).from(maintenanceComponent)
-          .where(eq(maintenanceComponent.componentId, component.id)),
-      )))
-      .returning({ id: component.id });
-    if (deleted) {
-      await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "component.deleted", resourceType: "component", resourceId: componentId });
-      return "deleted" as const;
-    }
     const [existing] = await tx.select({ id: component.id }).from(component)
-      .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).limit(1);
-    return existing ? "in_use" : "not_found";
+      .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).for("update");
+    if (!existing) return "not_found" as const;
+    const [incident] = await tx.select({ id: incidentComponent.incidentId }).from(incidentComponent)
+      .where(eq(incidentComponent.componentId, componentId)).limit(1);
+    const [maintenance] = await tx.select({ id: maintenanceComponent.maintenanceId }).from(maintenanceComponent)
+      .where(eq(maintenanceComponent.componentId, componentId)).limit(1);
+    const [template] = await tx.select({ id: communicationTemplateComponent.templateId }).from(communicationTemplateComponent)
+      .where(eq(communicationTemplateComponent.componentId, componentId)).limit(1);
+    if (incident || maintenance || template) return "in_use" as const;
+    await tx.delete(component).where(eq(component.id, componentId));
+    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "component.deleted", resourceType: "component", resourceId: componentId });
+    return "deleted" as const;
   });
 }

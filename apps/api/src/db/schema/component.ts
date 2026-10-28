@@ -1,4 +1,4 @@
-import { foreignKey, index, integer, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { foreignKey, index, integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { statusPage } from "./status-page";
 import { componentGroup } from "./component-group";
 
@@ -21,4 +21,5 @@ export const component = pgTable("component", {
   position: integer("position").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("component_status_page_id_idx").on(table.statusPageId),
+  unique("component_id_status_page_id_unique").on(table.id, table.statusPageId),
   foreignKey({ columns: [table.groupId, table.statusPageId], foreignColumns: [componentGroup.id, componentGroup.statusPageId] })]);

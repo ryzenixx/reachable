@@ -84,6 +84,6 @@ componentRoutes.delete("/:componentId", requireOrganizationAdmin, async (c) => {
   if (!componentId.success) return c.json({ error: "Invalid component ID" }, 400);
   const result = await deleteComponent(c.get("statusPageId"), componentId.data, c.get("userId"));
   if (result === "not_found") return c.json({ error: "Not found" }, 404);
-  if (result === "in_use") return c.json({ error: "Component is linked to an incident or maintenance" }, 409);
+  if (result === "in_use") return c.json({ error: "Component is linked to an incident, maintenance or template" }, 409);
   return c.body(null, 204);
 });
