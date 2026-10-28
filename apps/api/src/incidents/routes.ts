@@ -46,7 +46,7 @@ incidentRoutes.patch("/:incidentId", requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = editTitleSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const updated = await editIncidentTitle(c.get("statusPageId"), id.data, c.get("userId"), parsed.data.title);
+  const updated = await editIncidentTitle(c.get("statusPageId"), id.data, { type: "member", id: c.get("userId") }, parsed.data.title);
   if (!updated) return c.json({ error: "Not found" }, 404);
   return c.json(updated);
 });
@@ -58,7 +58,7 @@ incidentRoutes.patch("/:incidentId/updates/:updateId", requireOrganizationAdmin,
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = editMessageSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const updated = await editIncidentMessage(c.get("statusPageId"), incidentId.data, updateId.data, c.get("userId"), parsed.data.message);
+  const updated = await editIncidentMessage(c.get("statusPageId"), incidentId.data, updateId.data, { type: "member", id: c.get("userId") }, parsed.data.message);
   if (!updated) return c.json({ error: "Not found" }, 404);
   return c.json(updated);
 });
@@ -69,7 +69,7 @@ incidentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   }
   const parsed = createIncidentSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const created = await createIncident(c.get("statusPageId"), parsed.data, c.get("userId"));
+  const created = await createIncident(c.get("statusPageId"), parsed.data, { type: "member", id: c.get("userId") });
   if (!created) return c.json({ error: "Invalid components" }, 400);
   return c.json(created, 201);
 });
@@ -78,7 +78,7 @@ incidentRoutes.post("/historical", requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = createHistoricalIncidentSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const created = await createHistoricalIncident(c.get("statusPageId"), parsed.data, c.get("userId"));
+  const created = await createHistoricalIncident(c.get("statusPageId"), parsed.data, { type: "member", id: c.get("userId") });
   if (!created) return c.json({ error: "Invalid components" }, 400);
   return c.json(created, 201);
 });
@@ -91,7 +91,7 @@ incidentRoutes.post("/:incidentId/updates", requireOrganizationAdmin, async (c) 
   }
   const parsed = createIncidentUpdateSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const update = await addIncidentUpdate(c.get("statusPageId"), incidentId.data, parsed.data, c.get("userId"));
+  const update = await addIncidentUpdate(c.get("statusPageId"), incidentId.data, parsed.data, { type: "member", id: c.get("userId") });
   if (!update) return c.json({ error: "Not found" }, 404);
   if (update === "historical") return c.json({ error: "Historical incident cannot be reopened" }, 409);
   if (update === "invalid_components") return c.json({ error: "Invalid components" }, 400);

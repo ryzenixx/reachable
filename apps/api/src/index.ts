@@ -17,6 +17,8 @@ import { adminSubscriptionRoutes } from "./subscriptions/admin-routes";
 import { authEmailRoutes } from "./notifications/auth-email/routes";
 import { brandingRoutes } from "./branding/routes";
 import { templateRoutes } from "./templates/routes";
+import { apiKeyRoutes } from "./api-keys/routes";
+import { integrationRoutes } from "./api-keys/integration-routes";
 
 const app = new Hono();
 
@@ -28,6 +30,7 @@ app.use("/api/auth/organization/invite-member", async (c, next) => {
   await next();
 });
 app.all("/api/auth/*", async (c) => {
+  if (new URL(c.req.url).pathname.startsWith("/api/auth/api-key/")) return c.json({ error: "Not found" }, 404);
   if (!new URL(c.req.url).pathname.startsWith("/api/auth/organization/")) return auth.handler(c.req.raw);
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   return withAuthActor(session?.user.id ?? null, () => auth.handler(c.req.raw));
@@ -47,6 +50,8 @@ app.use("/api/public/status-pages/:slug/*", async (c, next) => {
 app.route("/api/public/status-pages", publicStatusPageRoutes);
 app.route("/api/public/status-pages", publicSubscriptionRoutes);
 app.route("/api/subscriptions", subscriptionActionRoutes);
+app.route("/api/integrations/status-pages", integrationRoutes);
+app.route("/api/organizations/:organizationId/api-keys", apiKeyRoutes);
 app.route("/api/organizations/:organizationId/notification-channels", channelRoutes);
 app.route("/api/organizations/:organizationId/activity", activityRoutes);
 app.route("/api/organizations/:organizationId/invitation-deliveries", authEmailRoutes);

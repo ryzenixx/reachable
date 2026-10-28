@@ -5,6 +5,7 @@
     "worker": "bun run src/worker/index.ts"
   },
   "dependencies": {
+    "@better-auth/api-key": "1.7.14",
     "@better-auth/drizzle-adapter": "^1.7.14",
     "better-auth": "^1.7.14",
     "csv-parse": "^7.0.3",

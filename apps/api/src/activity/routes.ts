@@ -20,7 +20,7 @@ activityRoutes.get("/", async (c) => {
   if (!options || (pageId !== null && !z.uuid().safeParse(pageId).success)) return c.json({ error: "Invalid query parameters" }, 400);
   if (pageId && !await pageBelongsToOrganization(pageId, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
   const rows = await db.select({
-    id: activity.id, statusPageId: activity.statusPageId, actorType: activity.actorType, actorId: activity.actorId,
+    id: activity.id, statusPageId: activity.statusPageId, actorType: activity.actorType, actorId: activity.actorId, apiKeyId: activity.apiKeyId,
     action: activity.action, resourceType: activity.resourceType, resourceId: activity.resourceId,
     details: activity.details, createdAt: activity.createdAt,
     cursorTimestamp: sql<string>`to_char(${activity.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,

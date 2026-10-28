@@ -73,7 +73,7 @@ componentRoutes.patch("/:componentId", requireOrganizationAdmin, async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = updateComponentSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const updated = await updateComponent(c.get("statusPageId"), componentId.data, parsed.data, c.get("userId"));
+  const updated = await updateComponent(c.get("statusPageId"), componentId.data, parsed.data, { type: "member", id: c.get("userId") });
   if (!updated) return c.json({ error: "Not found" }, 404);
   if (updated === "invalid_group") return c.json({ error: "Invalid component group" }, 400);
   return c.json(updated);

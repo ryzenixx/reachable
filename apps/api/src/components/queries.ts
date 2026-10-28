@@ -7,7 +7,7 @@ import { maintenanceComponent } from "../db/schema/maintenance";
 import { communicationTemplateComponent } from "../db/schema/template";
 import type { CreateComponent, UpdateComponent } from "./validation";
 import { effectiveComponentStatus } from "./status";
-import { recordPageActivity } from "../activity/record";
+import { recordPageActivity, type Actor } from "../activity/record";
 import { recordComponentStates } from "./history-record";
 
 const componentFields = {
@@ -35,7 +35,7 @@ export async function createComponent(pageId: string, input: CreateComponent, ac
   });
 }
 
-export async function updateComponent(pageId: string, componentId: string, input: UpdateComponent, actorId: string) {
+export async function updateComponent(pageId: string, componentId: string, input: UpdateComponent, actor: Actor) {
   const updated = await db.transaction(async (tx) => {
     if (input.groupId) {
       const [group] = await tx.select({ id: componentGroup.id }).from(componentGroup)
@@ -49,7 +49,7 @@ export async function updateComponent(pageId: string, componentId: string, input
       .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).returning();
     if (input.status !== undefined && input.status !== previous.status) await recordComponentStates(tx, [componentId], { type: "manual", id: componentId });
     const fields = (Object.keys(input) as (keyof UpdateComponent)[]).filter((field) => input[field] !== previous[field]);
-    if (fields.length) await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "component.updated", resourceType: "component", resourceId: componentId, details: { fields, ...(input.status && { status: input.status }) } });
+    if (fields.length) await recordPageActivity(tx, pageId, { actor, action: "component.updated", resourceType: "component", resourceId: componentId, details: { fields, ...(input.status && { status: input.status }) } });
     return row;
   });
   if (!updated || updated === "invalid_group") return updated;

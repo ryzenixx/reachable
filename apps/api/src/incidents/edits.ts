@@ -4,9 +4,9 @@ import { incidentEdit } from "../db/schema/content-edit";
 import { incident, incidentUpdate } from "../db/schema/incident";
 import { postmortem, postmortemPublication } from "../db/schema/postmortem";
 import { correctPendingNotifications } from "../notifications/corrections";
-import { recordPageActivity } from "../activity/record";
+import { recordPageActivity, type Actor } from "../activity/record";
 
-export async function editIncidentTitle(pageId: string, incidentId: string, actorId: string, title: string) {
+export async function editIncidentTitle(pageId: string, incidentId: string, actor: Actor, title: string) {
   return db.transaction(async (tx) => {
     const [current] = await tx.select().from(incident)
       .where(and(eq(incident.id, incidentId), eq(incident.statusPageId, pageId))).for("update");
@@ -14,17 +14,17 @@ export async function editIncidentTitle(pageId: string, incidentId: string, acto
     if (current.title === title) return current;
     const [updated] = await tx.update(incident).set({ title, updatedAt: sql`clock_timestamp()` })
       .where(eq(incident.id, incidentId)).returning();
-    await tx.insert(incidentEdit).values({ incidentId, field: "title", previousValue: current.title, newValue: title, actorId });
+    await tx.insert(incidentEdit).values({ incidentId, field: "title", previousValue: current.title, newValue: title, actorId: actor.type === "member" ? actor.id : null });
     await correctPendingNotifications(tx, sql`select ${incidentUpdate.id} from ${incidentUpdate} where ${incidentUpdate.incidentId} = ${incidentId}::uuid
       union all select ${postmortemPublication.id} from ${postmortemPublication}
       inner join ${postmortem} on ${postmortem.id} = ${postmortemPublication.postmortemId}
       where ${postmortem.incidentId} = ${incidentId}::uuid`, "title", title);
-    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "incident.corrected", resourceType: "incident", resourceId: incidentId, details: { field: "title" } });
+    await recordPageActivity(tx, pageId, { actor, action: "incident.corrected", resourceType: "incident", resourceId: incidentId, details: { field: "title" } });
     return updated;
   });
 }
 
-export async function editIncidentMessage(pageId: string, incidentId: string, updateId: string, actorId: string, message: string) {
+export async function editIncidentMessage(pageId: string, incidentId: string, updateId: string, actor: Actor, message: string) {
   return db.transaction(async (tx) => {
     const [current] = await tx.select({ id: incident.id }).from(incident)
       .where(and(eq(incident.id, incidentId), eq(incident.statusPageId, pageId))).for("update");
@@ -37,9 +37,9 @@ export async function editIncidentMessage(pageId: string, incidentId: string, up
     if (update.message === message) return update;
     const [updated] = await tx.update(incidentUpdate).set({ message }).where(eq(incidentUpdate.id, updateId)).returning(fields);
     await tx.update(incident).set({ updatedAt: sql`clock_timestamp()` }).where(eq(incident.id, incidentId));
-    await tx.insert(incidentEdit).values({ incidentId, updateId, field: "message", previousValue: update.message, newValue: message, actorId });
+    await tx.insert(incidentEdit).values({ incidentId, updateId, field: "message", previousValue: update.message, newValue: message, actorId: actor.type === "member" ? actor.id : null });
     await correctPendingNotifications(tx, sql`select ${updateId}::uuid`, "message", message);
-    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "incident.corrected", resourceType: "incident", resourceId: incidentId, details: { field: "message", updateId } });
+    await recordPageActivity(tx, pageId, { actor, action: "incident.corrected", resourceType: "incident", resourceId: incidentId, details: { field: "message", updateId } });
     return updated;
   });
 }

@@ -7,10 +7,10 @@ import type { CreateMaintenance, CreateMaintenanceUpdate, MaintenanceHistoryQuer
 import { enqueueStatusNotification } from "../notifications/queue";
 import { notificationDelivery } from "../db/schema/notification";
 import { encodeCursor } from "../history/pagination";
-import { recordPageActivity } from "../activity/record";
+import { recordPageActivity, type Actor } from "../activity/record";
 import { lockHistoryComponents, recordComponentStates } from "../components/history-record";
 
-export async function createMaintenance(pageId: string, input: CreateMaintenance, actorId: string) {
+export async function createMaintenance(pageId: string, input: CreateMaintenance, actor: Actor) {
   return db.transaction(async (tx) => {
     const components = input.componentIds.length
       ? await tx.select({ id: component.id, name: component.name }).from(component)
@@ -37,12 +37,12 @@ export async function createMaintenance(pageId: string, input: CreateMaintenance
       startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
       componentIds: input.componentIds,
     });
-    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "maintenance.created", resourceType: "maintenance", resourceId: created.id, details: { notified: input.notifySubscribers ?? false } });
+    await recordPageActivity(tx, pageId, { actor, action: "maintenance.created", resourceType: "maintenance", resourceId: created.id, details: { notified: input.notifySubscribers ?? false } });
     return created;
   });
 }
 
-export async function addMaintenanceUpdate(pageId: string, maintenanceId: string, input: CreateMaintenanceUpdate, actorId: string) {
+export async function addMaintenanceUpdate(pageId: string, maintenanceId: string, input: CreateMaintenanceUpdate, actor: Actor) {
   return db.transaction(async (tx) => {
     const [current] = await tx.select().from(maintenance)
       .where(and(eq(maintenance.id, maintenanceId), eq(maintenance.statusPageId, pageId))).for("update");
@@ -91,7 +91,7 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
       startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
       componentIds: [...new Set([...previousComponents.map((entry) => entry.id), ...components.map((entry) => entry.componentId)])],
     });
-    await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: input.status === "cancelled" && current.status !== "cancelled" ? "maintenance.cancelled" : "maintenance.updated", resourceType: "maintenance", resourceId: maintenanceId, details: { updateId: update.id, status: input.status, notified: input.notifySubscribers ?? false } });
+    await recordPageActivity(tx, pageId, { actor, action: input.status === "cancelled" && current.status !== "cancelled" ? "maintenance.cancelled" : "maintenance.updated", resourceType: "maintenance", resourceId: maintenanceId, details: { updateId: update.id, status: input.status, notified: input.notifySubscribers ?? false } });
     return update;
   });
 }
