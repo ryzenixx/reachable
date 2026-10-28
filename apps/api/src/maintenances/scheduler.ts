@@ -34,7 +34,7 @@ export async function processDueMaintenance() {
     if (components.length) await tx.insert(maintenanceUpdateComponent)
       .values(components.map((entry) => ({ updateId: update.id, ...entry })));
     await tx.update(maintenance).set({ status, updatedAt: update.createdAt }).where(eq(maintenance.id, current.id));
-    await recordComponentStates(tx, linked.map(({ id }) => id), { type: "maintenance", id: current.id });
+    await recordComponentStates(tx, linked.map(({ id }) => id), { type: "maintenance", id: current.id }, current.notifyOnAutoTransition);
     if (current.notifyOnAutoTransition) await enqueueStatusNotification(tx, current.statusPageId, update.id, {
       kind: "maintenance", title: current.title, status, message,
       startsAt: current.startsAt.toISOString(), endsAt: current.endsAt.toISOString(),

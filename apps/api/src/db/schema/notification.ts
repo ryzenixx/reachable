@@ -3,7 +3,7 @@ import { check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueI
 import { subscription } from "./subscription";
 
 export type StatusNotification = {
-  kind: "incident" | "maintenance" | "maintenance_reminder" | "postmortem";
+  kind: "incident" | "maintenance" | "maintenance_reminder" | "postmortem" | "component_status";
   pageName: string;
   title: string;
   status: string;
@@ -12,6 +12,11 @@ export type StatusNotification = {
   endsAt?: string;
   componentIds?: string[];
   maintenanceId?: string;
+  componentId?: string;
+  previousStatus?: string;
+  occurredAt?: string;
+  sourceType?: "manual" | "incident" | "maintenance";
+  sourceId?: string;
 };
 
 export const deliveryStatus = pgEnum("notification_delivery_status", ["pending", "sent", "failed", "skipped"]);

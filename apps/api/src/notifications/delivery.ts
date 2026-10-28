@@ -3,6 +3,8 @@ import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { notificationDelivery, webhookFailureAlert } from "../db/schema/notification";
 import { maintenance } from "../db/schema/maintenance";
+import { component } from "../db/schema/component";
+import { componentStateChange } from "../db/schema/component-history";
 import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionComponent, subscriptionToken, webhookSubscription } from "../db/schema/subscription";
 import { hashToken, tokenUrl } from "../subscriptions/tokens";
@@ -88,11 +90,30 @@ export async function processNotificationDelivery() {
         .where(and(eq(subscriptionComponent.subscriptionId, recipient.id), inArray(subscriptionComponent.componentId, delivery.payload.componentIds))).limit(1);
       relevant = Boolean(match);
     }
-    if (!page.published || !channel?.enabled || !recipient.confirmedAt || !["email", "webhook"].includes(recipient.channel) || !relevant) {
+    if (!page.published || !channel?.enabled || !recipient.confirmedAt || !["email", "webhook"].includes(recipient.channel) ||
+      (delivery.payload.kind === "component_status" && recipient.channel !== "webhook") || !relevant) {
       await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
       await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
         .where(eq(notificationDelivery.id, delivery.id));
       return;
+    }
+    if (delivery.payload.kind === "component_status") {
+      const componentId = delivery.payload.componentId ?? "00000000-0000-0000-0000-000000000000";
+      const [current] = await tx.select({ id: component.id }).from(component)
+        .where(and(eq(component.id, componentId), eq(component.statusPageId, page.id))).for("share", { skipLocked: true });
+      if (!current) {
+        const [exists] = await tx.select({ id: component.id }).from(component)
+          .where(and(eq(component.id, componentId), eq(component.statusPageId, page.id)));
+        if (exists) { await postpone(); return; }
+      }
+      const [change] = current ? await tx.select({ id: componentStateChange.id }).from(componentStateChange)
+        .where(and(eq(componentStateChange.id, delivery.eventId), eq(componentStateChange.componentId, current.id))) : [];
+      if (!change) {
+        await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
+        await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
+          .where(eq(notificationDelivery.id, delivery.id));
+        return;
+      }
     }
     const attempts = delivery.attempts + 1;
     const cycleAttempts = delivery.cycleAttempts + 1;
@@ -103,7 +124,7 @@ export async function processNotificationDelivery() {
       } else {
         const [webhook] = await tx.select().from(webhookSubscription).where(eq(webhookSubscription.subscriptionId, recipient.id));
         if (!webhook) throw new Error("Webhook subscription is missing");
-        const body = JSON.stringify({ type: `status.${delivery.payload.kind}`, timestamp: delivery.createdAt.toISOString(),
+        const body = JSON.stringify({ type: `status.${delivery.payload.kind}`, timestamp: delivery.payload.occurredAt ?? delivery.createdAt.toISOString(),
           data: { ...delivery.payload, pageName: page.name, pageId: page.id, pageSlug: page.slug } });
         await sendWebhook(recipient.destination, readWebhookSecret(webhook.encryptedSecret, recipient.id), delivery.eventId, body);
         await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));

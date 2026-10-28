@@ -43,7 +43,7 @@ export async function createIncident(pageId: string, input: CreateIncident, acto
         impact: status,
       })));
     }
-    await recordComponentStates(tx, componentIds, { type: "incident", id: created.id });
+    await recordComponentStates(tx, componentIds, { type: "incident", id: created.id }, input.notifySubscribers ?? false);
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "incident", title: created.title, status: input.status, message: input.message, componentIds,
     });
@@ -137,7 +137,7 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
     }
     await tx.update(incident).set({ status: input.status, updatedAt: update.createdAt })
       .where(eq(incident.id, incidentId));
-    await recordComponentStates(tx, affectedIds, { type: "incident", id: incidentId });
+    await recordComponentStates(tx, affectedIds, { type: "incident", id: incidentId }, input.notifySubscribers ?? false);
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "incident", title: existing.title, status: input.status, message: input.message,
       componentIds: [...new Set([...currentIds, ...finalIds])],

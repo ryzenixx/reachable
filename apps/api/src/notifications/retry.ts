@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { notificationDelivery, webhookFailureAlert } from "../db/schema/notification";
 import { statusPage } from "../db/schema/status-page";
@@ -7,6 +7,8 @@ import { recordPageActivity } from "../activity/record";
 import { incident, incidentUpdate } from "../db/schema/incident";
 import { maintenance, maintenanceUpdate } from "../db/schema/maintenance";
 import { postmortem, postmortemPublication } from "../db/schema/postmortem";
+import { component } from "../db/schema/component";
+import { componentStateChange } from "../db/schema/component-history";
 
 export async function retryNotification(pageId: string, deliveryId: string, actorId: string) {
   return db.transaction(async (tx) => {
@@ -51,6 +53,13 @@ export async function retryNotification(pageId: string, deliveryId: string, acto
       if (!source?.message) return "outdated" as const;
       payload.title = source.title;
       payload.message = source.message;
+    } else if (payload.kind === "component_status") {
+      if (!payload.componentId) return "outdated" as const;
+      const [latest] = await tx.select({ id: componentStateChange.id }).from(componentStateChange)
+        .innerJoin(component, eq(component.id, componentStateChange.componentId))
+        .where(and(eq(component.id, payload.componentId), eq(component.statusPageId, pageId)))
+        .orderBy(desc(componentStateChange.occurredAt), desc(componentStateChange.id)).limit(1);
+      if (!latest || latest.id !== eventId) return "outdated" as const;
     }
     await tx.update(notificationDelivery).set({ status: "pending", cycleAttempts: 0, payload, nextAttemptAt: sql`now()`, processedAt: null })
       .where(eq(notificationDelivery.id, deliveryId));

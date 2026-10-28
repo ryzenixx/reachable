@@ -47,7 +47,7 @@ export async function updateComponent(pageId: string, componentId: string, input
     if (!previous) return undefined;
     const [row] = await tx.update(component).set(input)
       .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).returning();
-    if (input.status !== undefined && input.status !== previous.status) await recordComponentStates(tx, [componentId], { type: "manual", id: componentId });
+    if (input.status !== undefined && input.status !== previous.status) await recordComponentStates(tx, [componentId], { type: "manual", id: componentId }, true);
     const fields = (Object.keys(input) as (keyof UpdateComponent)[]).filter((field) => input[field] !== previous[field]);
     if (fields.length) await recordPageActivity(tx, pageId, { actor, action: "component.updated", resourceType: "component", resourceId: componentId, details: { fields, ...(input.status && { status: input.status }) } });
     return row;

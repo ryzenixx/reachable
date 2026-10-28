@@ -79,7 +79,7 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
       reminderMinutes: input.status === "cancelled" ? null : input.reminderMinutes,
     })
       .where(eq(maintenance.id, maintenanceId));
-    await recordComponentStates(tx, affectedIds, { type: "maintenance", id: maintenanceId });
+    await recordComponentStates(tx, affectedIds, { type: "maintenance", id: maintenanceId }, input.notifySubscribers ?? false);
     if (input.status === "cancelled" && current.status !== "cancelled") {
       await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
         .where(and(eq(notificationDelivery.status, "pending"), inArray(notificationDelivery.eventId,
