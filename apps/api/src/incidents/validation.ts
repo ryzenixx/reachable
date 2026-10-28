@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { incidentStatus } from "../db/schema/incident";
 import { componentStatus } from "../db/schema/component";
+import type { HistoryQuery } from "../history/pagination";
+
+export const incidentHistoryStates = ["all", "active", "past"] as const;
+export type IncidentHistoryQuery = HistoryQuery<(typeof incidentHistoryStates)[number]>;
 
 const status = z.enum(incidentStatus.enumValues);
 const message = z.string().trim().min(1).max(10000);

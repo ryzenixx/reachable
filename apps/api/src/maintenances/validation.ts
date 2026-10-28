@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { maintenanceStatus } from "../db/schema/maintenance";
+import type { HistoryQuery } from "../history/pagination";
+
+export const maintenanceHistoryStates = ["all", "scheduled", "active", "past"] as const;
+export type MaintenanceHistoryQuery = HistoryQuery<(typeof maintenanceHistoryStates)[number]>;
 
 const date = z.iso.datetime({ offset: true }).refine((value) => Number.isFinite(Date.parse(value)));
 const componentIds = z.array(z.uuid()).max(100)

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { addIncidentUpdate, createIncident, listIncidents } from "./queries";
-import { createIncidentSchema, createIncidentUpdateSchema } from "./validation";
+import { createIncidentSchema, createIncidentUpdateSchema, incidentHistoryStates } from "./validation";
+import { parseHistoryQuery } from "../history/pagination";
 import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
 import { editIncidentMessage, editIncidentTitle, listIncidentEdits } from "./edits";
 import { postmortemRoutes } from "../postmortems/routes";
@@ -25,7 +26,11 @@ incidentRoutes.use("*", async (c, next) => {
 
 incidentRoutes.route("/:incidentId/postmortem", postmortemRoutes);
 
-incidentRoutes.get("/", async (c) => c.json(await listIncidents(c.get("statusPageId"))));
+incidentRoutes.get("/", async (c) => {
+  const options = parseHistoryQuery(c.req.url, incidentHistoryStates);
+  if (!options) return c.json({ error: "Invalid query parameters" }, 400);
+  return c.json(await listIncidents(c.get("statusPageId"), options));
+});
 
 incidentRoutes.get("/:incidentId/edits", requireOrganizationAdmin, async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));

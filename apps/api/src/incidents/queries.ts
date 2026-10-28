@@ -4,8 +4,9 @@ import { component } from "../db/schema/component";
 import { incident, incidentComponent, incidentUpdate, incidentUpdateComponent } from "../db/schema/incident";
 import { statusPage } from "../db/schema/status-page";
 import { postmortem } from "../db/schema/postmortem";
-import type { CreateIncident, CreateIncidentUpdate } from "./validation";
+import type { CreateIncident, CreateIncidentUpdate, IncidentHistoryQuery } from "./validation";
 import { enqueueStatusNotification } from "../notifications/queue";
+import { encodeCursor } from "../history/pagination";
 
 export async function createIncident(pageId: string, input: CreateIncident) {
   return db.transaction(async (tx) => {
@@ -116,16 +117,23 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
   });
 }
 
-export async function listIncidents(pageId: string, publicOnly = false) {
+export async function listIncidents(pageId: string, options: IncidentHistoryQuery, publicOnly = false) {
   return db.transaction(async (tx) => {
     const conditions = [eq(incident.statusPageId, pageId)];
     if (publicOnly) conditions.push(eq(statusPage.published, true));
-    const incidents = await tx.select({
+    if (options.state === "active") conditions.push(sql`${incident.status} <> 'resolved'`);
+    if (options.state === "past") conditions.push(eq(incident.status, "resolved"));
+    if (options.cursor) conditions.push(sql`(${incident.createdAt}, ${incident.id}) < (${options.cursor.timestamp}::timestamptz, ${options.cursor.id}::uuid)`);
+    const rows = await tx.select({
       id: incident.id, title: incident.title, status: incident.status,
       createdAt: incident.createdAt, updatedAt: incident.updatedAt,
+      cursorTimestamp: sql<string>`to_char(${incident.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
     }).from(incident).innerJoin(statusPage, eq(statusPage.id, incident.statusPageId))
-      .where(and(...conditions)).orderBy(desc(incident.createdAt), desc(incident.id));
-    if (!incidents.length) return [];
+      .where(and(...conditions)).orderBy(desc(incident.createdAt), desc(incident.id)).limit(options.limit + 1);
+    const incidents = rows.slice(0, options.limit);
+    const last = incidents.at(-1);
+    const nextCursor = rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null;
+    if (!incidents.length) return { data: [], nextCursor };
 
     const ids = incidents.map((item) => item.id);
     const updates = await tx.select({
@@ -145,7 +153,7 @@ export async function listIncidents(pageId: string, publicOnly = false) {
       publishedAt: postmortem.publishedAt, updatedAt: postmortem.publishedUpdatedAt }).from(postmortem)
       .where(and(inArray(postmortem.incidentId, ids), isNotNull(postmortem.publishedContent)));
 
-    return incidents.map((item) => ({
+    return { nextCursor, data: incidents.map(({ cursorTimestamp: _, ...item }) => ({
       ...item,
       postmortem: published.filter((entry) => entry.incidentId === item.id)
         .map(({ incidentId: _, ...entry }) => entry)[0] ?? null,
@@ -158,13 +166,13 @@ export async function listIncidents(pageId: string, publicOnly = false) {
             : null,
         })),
       components: components.filter((entry) => entry.incidentId === item.id).map(({ incidentId: _, ...entry }) => entry),
-    }));
+    })) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 
-export async function listPublicIncidents(slug: string) {
+export async function listPublicIncidents(slug: string, options: IncidentHistoryQuery) {
   const [page] = await db.select({ id: statusPage.id }).from(statusPage)
     .where(and(eq(statusPage.slug, slug), eq(statusPage.published, true))).limit(1);
   if (!page) return undefined;
-  return listIncidents(page.id, true);
+  return listIncidents(page.id, options, true);
 }

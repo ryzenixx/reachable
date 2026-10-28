@@ -11,7 +11,7 @@ export const incident = pgTable("incident", {
   status: incidentStatus("status").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("incident_status_page_id_idx").on(table.statusPageId)]);
+}, (table) => [index("incident_page_created_idx").on(table.statusPageId, table.createdAt, table.id)]);
 
 export const incidentUpdate = pgTable("incident_update", {
   id: uuid("id").defaultRandom().primaryKey(),

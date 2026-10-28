@@ -18,7 +18,7 @@ export const maintenance = pgTable("maintenance", {
   reminderMinutes: integer("reminder_minutes"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("maintenance_status_page_id_idx").on(table.statusPageId),
+}, (table) => [index("maintenance_page_created_idx").on(table.statusPageId, table.createdAt, table.id),
   index("maintenance_auto_start_idx").on(table.startsAt).where(sql`${table.status} = 'scheduled' and ${table.autoStart}`),
   index("maintenance_auto_complete_idx").on(table.endsAt).where(sql`${table.status} in ('in_progress', 'verifying') and ${table.autoComplete}`),
   check("maintenance_window_check", sql`${table.endsAt} > ${table.startsAt}`),

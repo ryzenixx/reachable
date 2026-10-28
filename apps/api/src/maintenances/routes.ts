@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { addMaintenanceUpdate, createMaintenance, listMaintenances } from "./queries";
-import { createMaintenanceSchema, createMaintenanceUpdateSchema } from "./validation";
+import { createMaintenanceSchema, createMaintenanceUpdateSchema, maintenanceHistoryStates } from "./validation";
+import { parseHistoryQuery } from "../history/pagination";
 import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
 import { editMaintenanceMessage, editMaintenanceTitle, listMaintenanceEdits } from "./edits";
 
@@ -20,7 +21,11 @@ maintenanceRoutes.use("*", async (c, next) => {
   await next();
 });
 
-maintenanceRoutes.get("/", async (c) => c.json(await listMaintenances(c.get("statusPageId"))));
+maintenanceRoutes.get("/", async (c) => {
+  const options = parseHistoryQuery(c.req.url, maintenanceHistoryStates);
+  if (!options) return c.json({ error: "Invalid query parameters" }, 400);
+  return c.json(await listMaintenances(c.get("statusPageId"), options));
+});
 
 maintenanceRoutes.get("/:maintenanceId/edits", requireOrganizationAdmin, async (c) => {
   const id = z.uuid().safeParse(c.req.param("maintenanceId"));
