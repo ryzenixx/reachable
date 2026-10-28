@@ -21,6 +21,7 @@ import { apiKeyRoutes } from "./api-keys/routes";
 import { integrationRoutes } from "./api-keys/integration-routes";
 import { apiCors, protectOrganizationOrigin } from "./http/origins";
 import { healthRoutes } from "./health/routes";
+import { withClientIp } from "./http/client-ip";
 
 const app = new Hono();
 
@@ -70,4 +71,11 @@ app.route("/api/organizations/:organizationId/status-pages/:statusPageId/subscri
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/branding", brandingRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/templates", templateRoutes);
 
-export default app;
+export default {
+  fetch(request: Request, server: Bun.Server<unknown>) {
+    if (!new URL(request.url).pathname.startsWith("/api/auth/")) return app.fetch(request);
+    const safeRequest = withClientIp(request, server.requestIP(request)?.address);
+    if (!safeRequest) return new Response("Invalid client IP", { status: 400 });
+    return app.fetch(safeRequest);
+  },
+};

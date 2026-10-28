@@ -10,6 +10,7 @@ import { queueAuthEmail } from "./notifications/auth-email/queue";
 import { invitationUrl } from "./organizations/invitations";
 import { getApplicationUrl } from "./config/urls";
 import { organizationActivityHooks } from "./activity/auth-hooks";
+import { clientIpHeader } from "./http/client-ip";
 
 const access = createAccessControl({ ...defaultStatements, apiKey: ["create", "read", "update", "delete"] } as const);
 const apiKeyActions = ["create", "read", "update", "delete"] as const;
@@ -22,7 +23,9 @@ export const auth = betterAuth({
   disabledPaths: ["/api-key/create", "/api-key/delete", "/api-key/get", "/api-key/list", "/api-key/update"],
   advanced: {
     backgroundTasks: { handler: (task) => { void task; } },
+    ipAddress: { ipAddressHeaders: [clientIpHeader] },
   },
+  rateLimit: { storage: "database" },
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,

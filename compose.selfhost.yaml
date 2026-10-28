@@ -10,6 +10,7 @@ x-reachable-environment: &reachable-environment
   APP_URL: ${APP_URL:?APP_URL is required}
   SMTP_URL: ${SMTP_URL:?SMTP_URL is required}
   EMAIL_FROM: ${EMAIL_FROM:?EMAIL_FROM is required}
+  TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
 
 services:
   postgres:
