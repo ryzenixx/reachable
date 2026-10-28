@@ -36,6 +36,10 @@ app.use("/api/*", (c, next) => {
   return bodyLimit({ maxSize: imageUpload ? 2 * 1024 * 1024 : 256 * 1024 })(c, next);
 });
 app.use("/api/*", protectPublicRequests);
+app.use("/api/organizations/*", async (c, next) => {
+  c.header("Cache-Control", "no-store");
+  await next();
+});
 app.use("/api/organizations/*", protectOrganizationOrigin);
 app.use("/api/auth/organization/invite-member", async (c, next) => {
   if (c.req.method === "POST" && !getApplicationUrl()) {
