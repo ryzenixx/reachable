@@ -97,7 +97,7 @@ export async function processNotificationDelivery() {
     try {
       if (recipient.channel === "email") {
         const brand = await getPageEmailBrand(tx, page.id, page.name);
-        await sendStatusUpdate(recipient.destination, { ...delivery.payload, pageName: page.name }, tokenUrl("unsubscribe", claim.token), brand);
+        await sendStatusUpdate(recipient.destination, { ...delivery.payload, pageName: page.name }, tokenUrl("unsubscribe", claim.token), tokenUrl("manage", claim.token), brand);
       } else {
         const [webhook] = await tx.select().from(webhookSubscription).where(eq(webhookSubscription.subscriptionId, recipient.id));
         if (!webhook) throw new Error("Webhook subscription is missing");

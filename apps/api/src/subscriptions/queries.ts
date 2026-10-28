@@ -19,7 +19,7 @@ export async function getPublicChannels(slug: string) {
 }
 
 type SubscriptionRequest =
-  | { type: "public"; slug: string; email: string }
+  | { type: "public"; slug: string; email: string; preferences?: SubscriptionPreferences }
   | { type: "admin"; pageId: string; email: string; actorId: string; preferences?: SubscriptionPreferences }
   | { type: "resend"; pageId: string; subscriptionId: string; actorId: string };
 
@@ -48,8 +48,9 @@ export async function requestEmailSubscription(input: SubscriptionRequest) {
     const [entry] = await tx.insert(subscription).values({ statusPageId: page.id, channel: "email", destination: email })
       .onConflictDoUpdate({ target: [subscription.statusPageId, subscription.channel, subscription.destination],
         set: { lastRequestedAt: sql`now()` } }).returning();
-    if (!existing && input.type === "admin" && input.preferences) {
-      const result = await updatePreferences(tx, entry, input.preferences, { type: "member", id: input.actorId });
+    if (!existing && input.type !== "resend" && input.preferences) {
+      const actor: Actor = input.type === "admin" ? { type: "member", id: input.actorId } : { type: "subscriber" };
+      const result = await updatePreferences(tx, entry, input.preferences, actor);
       if (result === "invalid_components") {
         await tx.delete(subscription).where(eq(subscription.id, entry.id));
         return result;
@@ -100,7 +101,7 @@ export async function useSubscriptionToken(token: string, purpose: "confirm" | "
       .where(and(eq(confirmationDelivery.subscriptionId, locked.id), eq(confirmationDelivery.status, "pending")));
     await tx.delete(subscriptionToken).where(and(eq(subscriptionToken.subscriptionId, locked.id), eq(subscriptionToken.purpose, "confirm")));
     if (!locked.confirmedAt) await recordPageActivity(tx, locked.statusPageId, { actor: { type: "subscriber" }, action: "subscription.confirmed", resourceType: "subscription", resourceId: locked.id, details: { channel: locked.channel } });
-    if (locked.channel === "webhook") {
+    if (locked.channel === "webhook" && !locked.confirmedAt) {
       const [webhook] = await tx.select().from(webhookSubscription).where(eq(webhookSubscription.subscriptionId, locked.id));
       if (!webhook) throw new Error("Webhook subscription is missing");
       return readWebhookSecret(webhook.encryptedSecret, locked.id);

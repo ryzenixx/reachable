@@ -15,11 +15,11 @@ export async function sendBrandingPreview(pageId: string, to: string, kind: "inc
     if (existing?.recent) return "rate_limited" as const;
     const brand = await getPageEmailBrand(tx, pageId, page.name);
     const link = "https://example.invalid/preview";
-    if (kind === "confirmation") await sendSubscriptionConfirmation(to, page.name, link, link, brand, true);
+    if (kind === "confirmation") await sendSubscriptionConfirmation(to, page.name, link, link, link, brand, true);
     else await sendStatusUpdate(to, { kind, pageName: page.name, title: "Example status update", status: kind === "maintenance" ? "scheduled" : "resolved",
       message: "This is a preview of a status notification.",
       ...(kind === "maintenance" && { startsAt: new Date().toISOString(), endsAt: new Date(Date.now() + 3600000).toISOString() }),
-    }, link, brand, true);
+    }, link, link, brand, true);
     await tx.insert(pageBranding).values({ statusPageId: pageId, lastPreviewAt: sql`clock_timestamp()` }).onConflictDoUpdate({
       target: pageBranding.statusPageId, set: { lastPreviewAt: sql`clock_timestamp()` },
     });

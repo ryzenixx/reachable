@@ -73,12 +73,12 @@ export function OrganizationInvitationEmail({ organizationName, inviterName, url
   </ActionEmail>;
 }
 
-export function StatusUpdateEmail({ update, unsubscribeUrl, brand }: { update: StatusNotification; unsubscribeUrl: string; brand: PageEmailBrand }) {
+export function StatusUpdateEmail({ update, unsubscribeUrl, manageUrl, brand }: { update: StatusNotification; unsubscribeUrl: string; manageUrl: string; brand: PageEmailBrand }) {
   const label = update.kind === "incident" ? "Incident update" : update.kind === "maintenance" ? "Maintenance update" : update.kind === "maintenance_reminder" ? "Maintenance reminder" : "Incident postmortem";
   const date = new Intl.DateTimeFormat("en", { timeZone: brand.timezone, dateStyle: "medium", timeStyle: "short" });
   const window = update.startsAt && update.endsAt && Number.isFinite(Date.parse(update.startsAt)) && Number.isFinite(Date.parse(update.endsAt))
     ? `${date.format(new Date(update.startsAt))} – ${date.format(new Date(update.endsAt))} (${brand.timezone})` : null;
-  return <ActionEmail preview={label} heading={update.title} brand={brand} footer={<>{brand.footer && <BrandingFooter text={brand.footer} />}<Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
+  return <ActionEmail preview={label} heading={update.title} brand={brand} footer={<>{brand.footer && <BrandingFooter text={brand.footer} />}<Link href={manageUrl}>Manage subscription</Link> · <Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
     <Text style={paragraphStyle}>{update.pageName} · {update.status.replaceAll("_", " ")}</Text>
     <Text style={paragraphStyle}>{update.message.split(/\r?\n/).map((line, index) =>
       <Fragment key={index}>{index > 0 && <br />}{line}</Fragment>)}</Text>
@@ -86,11 +86,12 @@ export function StatusUpdateEmail({ update, unsubscribeUrl, brand }: { update: S
   </ActionEmail>;
 }
 
-export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl, brand, webhookUrl }: { pageName: string; confirmUrl: string; unsubscribeUrl: string; brand: PageEmailBrand; webhookUrl?: string }) {
-  return <ActionEmail preview={`Confirm your subscription to ${pageName}`} heading="Confirm your subscription"
-    actionLabel="Confirm subscription" actionUrl={confirmUrl} brand={brand}
-    footer={<>This confirmation link expires in 24 hours. {brand.footer && <BrandingFooter text={brand.footer} />}<Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
-    <Text style={paragraphStyle}>Confirm your subscription to updates from {pageName}.</Text>
+export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl, manageUrl, brand, webhookUrl, alreadyConfirmed }: { pageName: string; confirmUrl: string; unsubscribeUrl: string; manageUrl: string; brand: PageEmailBrand; webhookUrl?: string; alreadyConfirmed?: boolean }) {
+  const action = alreadyConfirmed ? "Manage" : "Confirm";
+  return <ActionEmail preview={`${action} your subscription to ${pageName}`} heading={`${action} your subscription`}
+    actionLabel={`${action} subscription`} actionUrl={alreadyConfirmed ? manageUrl : confirmUrl} brand={brand}
+    footer={<>{!alreadyConfirmed && <>This confirmation link expires in 24 hours. </>}{brand.footer && <BrandingFooter text={brand.footer} />}{!alreadyConfirmed && <><Link href={manageUrl}>Manage subscription</Link> · </>}<Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
+    <Text style={paragraphStyle}>{alreadyConfirmed ? `Manage your subscription to updates from ${pageName}.` : `Confirm your subscription to updates from ${pageName}.`}</Text>
     {webhookUrl && <Text style={paragraphStyle}>Webhook endpoint: {webhookUrl}</Text>}
   </ActionEmail>;
 }

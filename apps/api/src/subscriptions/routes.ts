@@ -20,7 +20,7 @@ publicSubscriptionRoutes.post("/:slug/subscriptions", bodyLimit({ maxSize: 16384
   c.header("Cache-Control", "no-store");
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const input = z.discriminatedUnion("channel", [
-    z.strictObject({ channel: z.literal("email"), email: emailSchema }),
+    z.strictObject({ channel: z.literal("email"), email: emailSchema, preferences: preferencesSchema.optional() }),
     z.strictObject({ channel: z.literal("webhook"), email: emailSchema, url: z.string().max(2048), preferences: preferencesSchema.optional() }),
   ])
     .safeParse(await c.req.json().catch(() => null));
@@ -29,7 +29,7 @@ publicSubscriptionRoutes.post("/:slug/subscriptions", bodyLimit({ maxSize: 16384
     const url = input.data.channel === "webhook" ? parseWebhookUrl(input.data.url) : undefined;
     if (input.data.channel === "webhook" && !url) return c.json({ error: "Invalid webhook URL" }, 400);
     const result = input.data.channel === "email"
-      ? await requestEmailSubscription({ type: "public", slug: c.req.param("slug"), email: input.data.email })
+      ? await requestEmailSubscription({ type: "public", slug: c.req.param("slug"), email: input.data.email, preferences: input.data.preferences })
       : await requestWebhookSubscription(c.req.param("slug"), url!.toString(), input.data.email, input.data.preferences);
     if (result === "not_found") return c.json({ error: "Not found" }, 404);
     if (result === "unavailable") return c.json({ error: "Channel unavailable" }, 400);

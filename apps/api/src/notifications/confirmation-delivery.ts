@@ -84,8 +84,8 @@ export async function processConfirmationDelivery() {
       const [webhook] = recipient.channel === "webhook"
         ? await tx.select().from(webhookSubscription).where(eq(webhookSubscription.subscriptionId, recipient.id)) : [];
       if (recipient.channel === "webhook" && !webhook) throw new Error("Webhook subscription is missing");
-      await sendSubscriptionConfirmation(webhook?.contactEmail ?? recipient.destination, page.name, tokenUrl("confirm", claim.confirm), tokenUrl("unsubscribe", claim.unsubscribe), brand, false,
-        webhook ? recipient.destination : undefined);
+      await sendSubscriptionConfirmation(webhook?.contactEmail ?? recipient.destination, page.name, tokenUrl("confirm", claim.confirm), tokenUrl("unsubscribe", claim.unsubscribe), tokenUrl("manage", claim.unsubscribe), brand, false,
+        webhook ? recipient.destination : undefined, Boolean(recipient.confirmedAt));
     } catch {
       const failed = attempts >= 8;
       const delaySeconds = Math.min(60 * 2 ** (attempts - 1), 3600);

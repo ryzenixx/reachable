@@ -20,7 +20,7 @@ export async function requestWebhookSubscription(slug: string, destination: stri
       recent: sql<boolean>`${subscription.lastRequestedAt} > now() - interval '5 minutes'`, contactEmail: webhookSubscription.contactEmail,
     }).from(subscription).innerJoin(webhookSubscription, eq(webhookSubscription.subscriptionId, subscription.id))
       .where(and(eq(subscription.statusPageId, page.id), eq(subscription.channel, "webhook"), eq(subscription.destination, destination))).for("update");
-    if (existing && (existing.confirmedAt || existing.recent || existing.contactEmail !== email)) return "accepted" as const;
+    if (existing && (existing.recent || existing.contactEmail !== email)) return "accepted" as const;
     const [limit] = await tx.select({ count: subscriptionRateLimit.count,
       inWindow: sql<boolean>`${subscriptionRateLimit.windowStartedAt} > now() - interval '1 minute'`,
     }).from(subscriptionRateLimit).where(eq(subscriptionRateLimit.statusPageId, page.id));

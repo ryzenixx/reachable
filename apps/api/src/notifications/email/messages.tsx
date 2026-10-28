@@ -17,16 +17,17 @@ export async function sendOrganizationInvitation(to: string, organizationName: s
     ...await renderEmail(<OrganizationInvitationEmail organizationName={organizationName} inviterName={inviterName} url={url} />) });
 }
 
-export async function sendStatusUpdate(to: string, update: StatusNotification, unsubscribeUrl: string, brand: PageEmailBrand, preview = false) {
+export async function sendStatusUpdate(to: string, update: StatusNotification, unsubscribeUrl: string, manageUrl: string, brand: PageEmailBrand, preview = false) {
   const subject = update.kind === "incident" ? "Incident update"
     : update.kind === "maintenance" ? "Maintenance update" : update.kind === "maintenance_reminder" ? "Maintenance reminder" : "Incident postmortem";
   await sendNotification({ channel: "email", to, subject: preview ? `[Preview] ${subject}` : subject, senderName: brand.name,
     ...(brand.replyTo && { replyTo: brand.replyTo }),
-    ...await renderEmail(<StatusUpdateEmail update={update} unsubscribeUrl={unsubscribeUrl} brand={brand} />, brand) });
+    ...await renderEmail(<StatusUpdateEmail update={update} unsubscribeUrl={unsubscribeUrl} manageUrl={manageUrl} brand={brand} />, brand) });
 }
 
-export async function sendSubscriptionConfirmation(to: string, pageName: string, confirmUrl: string, unsubscribeUrl: string, brand: PageEmailBrand, preview = false, webhookUrl?: string) {
-  await sendNotification({ channel: "email", to, subject: `${preview ? "[Preview] " : ""}Confirm your subscription to ${pageName}`, senderName: brand.name,
+export async function sendSubscriptionConfirmation(to: string, pageName: string, confirmUrl: string, unsubscribeUrl: string, manageUrl: string, brand: PageEmailBrand, preview = false, webhookUrl?: string, alreadyConfirmed = false) {
+  const action = alreadyConfirmed ? "Manage" : "Confirm";
+  await sendNotification({ channel: "email", to, subject: `${preview ? "[Preview] " : ""}${action} your subscription to ${pageName}`, senderName: brand.name,
     ...(brand.replyTo && { replyTo: brand.replyTo }),
-    ...await renderEmail(<ConfirmSubscriptionEmail pageName={pageName} confirmUrl={confirmUrl} unsubscribeUrl={unsubscribeUrl} brand={brand} webhookUrl={webhookUrl} />, brand) });
+    ...await renderEmail(<ConfirmSubscriptionEmail pageName={pageName} confirmUrl={confirmUrl} unsubscribeUrl={unsubscribeUrl} manageUrl={manageUrl} brand={brand} webhookUrl={webhookUrl} alreadyConfirmed={alreadyConfirmed} />, brand) });
 }
