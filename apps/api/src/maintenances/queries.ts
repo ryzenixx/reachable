@@ -8,6 +8,7 @@ import { enqueueStatusNotification } from "../notifications/queue";
 import { notificationDelivery } from "../db/schema/notification";
 import { encodeCursor } from "../history/pagination";
 import { recordPageActivity } from "../activity/record";
+import { lockHistoryComponents, recordComponentStates } from "../components/history-record";
 
 export async function createMaintenance(pageId: string, input: CreateMaintenance, actorId: string) {
   return db.transaction(async (tx) => {
@@ -52,20 +53,15 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
     const startsAt = input.startsAt ? new Date(input.startsAt) : current.startsAt;
     const endsAt = input.endsAt ? new Date(input.endsAt) : current.endsAt;
     if (endsAt <= startsAt) return "invalid_window" as const;
-    const previousComponents = input.notifySubscribers
-      ? await tx.select({ id: maintenanceComponent.componentId }).from(maintenanceComponent)
-        .where(eq(maintenanceComponent.maintenanceId, maintenanceId))
-      : [];
+    const previousComponents = await tx.select({ id: maintenanceComponent.componentId }).from(maintenanceComponent)
+      .where(eq(maintenanceComponent.maintenanceId, maintenanceId));
+    const affectedIds = [...new Set([...previousComponents.map(({ id }) => id), ...(input.componentIds ?? [])])];
+    const locked = await lockHistoryComponents(tx, pageId, affectedIds);
+    if (locked.length !== affectedIds.length) return "invalid_components" as const;
     if (input.componentIds) {
-      const components = input.componentIds.length
-        ? await tx.select({ id: component.id }).from(component)
-          .where(and(eq(component.statusPageId, pageId), inArray(component.id, input.componentIds)))
-          .orderBy(component.id).for("share")
-        : [];
-      if (components.length !== input.componentIds.length) return "invalid_components" as const;
       await tx.delete(maintenanceComponent).where(eq(maintenanceComponent.maintenanceId, maintenanceId));
-      if (components.length) await tx.insert(maintenanceComponent)
-        .values(components.map(({ id }) => ({ maintenanceId, componentId: id })));
+      if (input.componentIds.length) await tx.insert(maintenanceComponent)
+        .values(input.componentIds.map((id) => ({ maintenanceId, componentId: id })));
     }
     const [update] = await tx.insert(maintenanceUpdate).values({
       maintenanceId, status: input.status, message: input.message, startsAt, endsAt, createdAt: sql`clock_timestamp()`,
@@ -83,6 +79,7 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
       reminderMinutes: input.status === "cancelled" ? null : input.reminderMinutes,
     })
       .where(eq(maintenance.id, maintenanceId));
+    await recordComponentStates(tx, affectedIds, { type: "maintenance", id: maintenanceId });
     if (input.status === "cancelled" && current.status !== "cancelled") {
       await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
         .where(and(eq(notificationDelivery.status, "pending"), inArray(notificationDelivery.eventId,

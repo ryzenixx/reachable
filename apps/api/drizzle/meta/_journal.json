@@ -169,6 +169,13 @@
       "when": 1793219279485,
       "tag": "0023_huge_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793219498919,
+      "tag": "0024_eminent_big_bertha",
+      "breakpoints": true
     }
   ]
 }

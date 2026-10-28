@@ -7,6 +7,7 @@ import { maintenanceComponent } from "../db/schema/maintenance";
 import type { CreateComponent, UpdateComponent } from "./validation";
 import { effectiveComponentStatus } from "./status";
 import { recordPageActivity } from "../activity/record";
+import { recordComponentStates } from "./history-record";
 
 const componentFields = {
   ...getTableColumns(component),
@@ -27,6 +28,7 @@ export async function createComponent(pageId: string, input: CreateComponent, ac
       if (!group) return "invalid_group" as const;
     }
     const [created] = await tx.insert(component).values({ ...input, statusPageId: pageId }).returning();
+    await recordComponentStates(tx, [created.id], { type: "manual", id: created.id });
     await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "component.created", resourceType: "component", resourceId: created.id });
     return { ...created, manualStatus: created.status };
   });
@@ -44,6 +46,7 @@ export async function updateComponent(pageId: string, componentId: string, input
     if (!previous) return undefined;
     const [row] = await tx.update(component).set(input)
       .where(and(eq(component.id, componentId), eq(component.statusPageId, pageId))).returning();
+    if (input.status !== undefined && input.status !== previous.status) await recordComponentStates(tx, [componentId], { type: "manual", id: componentId });
     const fields = (Object.keys(input) as (keyof UpdateComponent)[]).filter((field) => input[field] !== previous[field]);
     if (fields.length) await recordPageActivity(tx, pageId, { actor: { type: "member", id: actorId }, action: "component.updated", resourceType: "component", resourceId: componentId, details: { fields, ...(input.status && { status: input.status }) } });
     return row;

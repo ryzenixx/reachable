@@ -8,15 +8,14 @@ import type { CreateHistoricalIncident, CreateIncident, CreateIncidentUpdate, In
 import { enqueueStatusNotification } from "../notifications/queue";
 import { encodeCursor } from "../history/pagination";
 import { recordPageActivity } from "../activity/record";
+import { lockHistoryComponents, recordComponentStates } from "../components/history-record";
 
 export async function createIncident(pageId: string, input: CreateIncident, actorId: string) {
   return db.transaction(async (tx) => {
     const componentIds = input.components.map((entry) => entry.componentId);
     let components: { id: string; name: string }[] = [];
     if (componentIds.length) {
-      components = await tx.select({ id: component.id, name: component.name }).from(component)
-        .where(and(eq(component.statusPageId, pageId), inArray(component.id, componentIds)))
-        .orderBy(component.id).for("share");
+      components = await lockHistoryComponents(tx, pageId, componentIds);
       if (components.length !== componentIds.length) return undefined;
     }
 
@@ -44,6 +43,7 @@ export async function createIncident(pageId: string, input: CreateIncident, acto
         impact: status,
       })));
     }
+    await recordComponentStates(tx, componentIds, { type: "incident", id: created.id });
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "incident", title: created.title, status: input.status, message: input.message, componentIds,
     });
@@ -96,12 +96,9 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
 
     const incoming = input.components ?? [];
     const incomingIds = incoming.map((entry) => entry.componentId);
-    if (incomingIds.length) {
-      const valid = await tx.select({ id: component.id }).from(component)
-        .where(and(eq(component.statusPageId, pageId), inArray(component.id, incomingIds)))
-        .orderBy(component.id).for("share");
-      if (valid.length !== incomingIds.length) return "invalid_components" as const;
-    }
+    const affectedIds = [...new Set([...currentIds, ...incomingIds])];
+    const valid = await lockHistoryComponents(tx, pageId, affectedIds);
+    if (valid.length !== affectedIds.length) return "invalid_components" as const;
 
     const finalIds = new Set([...currentIds, ...incomingIds]);
     for (const id of removedIds) finalIds.delete(id);
@@ -140,6 +137,7 @@ export async function addIncidentUpdate(pageId: string, incidentId: string, inpu
     }
     await tx.update(incident).set({ status: input.status, updatedAt: update.createdAt })
       .where(eq(incident.id, incidentId));
+    await recordComponentStates(tx, affectedIds, { type: "incident", id: incidentId });
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "incident", title: existing.title, status: input.status, message: input.message,
       componentIds: [...new Set([...currentIds, ...finalIds])],

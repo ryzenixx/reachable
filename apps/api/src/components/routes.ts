@@ -7,6 +7,8 @@ import {
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { createComponent, deleteComponent, listComponents, updateComponent } from "./queries";
 import { componentIdSchema, createComponentSchema, updateComponentSchema } from "./validation";
+import { getComponentHistory, listComponentStateChanges, parseHistoryRange } from "./history";
+import { parseHistoryQuery } from "../history/pagination";
 
 type ComponentContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 
@@ -24,6 +26,31 @@ componentRoutes.use("*", async (c, next) => {
 });
 
 componentRoutes.get("/", async (c) => c.json(await listComponents(c.get("statusPageId"))));
+
+componentRoutes.get("/:componentId/history", async (c) => {
+  const id = componentIdSchema.safeParse(c.req.param("componentId"));
+  if (!id.success) return c.json({ error: "Invalid component ID" }, 400);
+  const url = new URL(c.req.url);
+  const range = parseHistoryRange(url);
+  if (!range || [...url.searchParams].length) return c.json({ error: "Invalid history range" }, 400);
+  c.header("Cache-Control", "no-store");
+  const history = await getComponentHistory(c.get("statusPageId"), id.data, range);
+  if (!history) return c.json({ error: "Not found" }, 404);
+  return c.json(history);
+});
+
+componentRoutes.get("/:componentId/history/changes", async (c) => {
+  const id = componentIdSchema.safeParse(c.req.param("componentId"));
+  if (!id.success) return c.json({ error: "Invalid component ID" }, 400);
+  const url = new URL(c.req.url);
+  const range = parseHistoryRange(url);
+  const options = parseHistoryQuery(url.toString(), ["all"] as const);
+  if (!range || !options) return c.json({ error: "Invalid query parameters" }, 400);
+  c.header("Cache-Control", "no-store");
+  const history = await listComponentStateChanges(c.get("statusPageId"), id.data, range, options.limit, options.cursor);
+  if (!history) return c.json({ error: "Not found" }, 404);
+  return c.json({ from: range.from, to: range.to, ...history });
+});
 
 componentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {

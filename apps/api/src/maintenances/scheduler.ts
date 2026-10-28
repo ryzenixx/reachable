@@ -4,6 +4,7 @@ import { component } from "../db/schema/component";
 import { maintenance, maintenanceComponent, maintenanceReminder, maintenanceUpdate, maintenanceUpdateComponent } from "../db/schema/maintenance";
 import { enqueueStatusNotification } from "../notifications/queue";
 import { recordPageActivity } from "../activity/record";
+import { lockHistoryComponents, recordComponentStates } from "../components/history-record";
 
 export async function processDueMaintenance() {
   return db.transaction(async (tx) => {
@@ -14,6 +15,10 @@ export async function processDueMaintenance() {
         eq(maintenance.autoComplete, true), lte(maintenance.endsAt, sql`now()`)),
     )).orderBy(asc(maintenance.startsAt), asc(maintenance.id)).limit(1).for("update", { skipLocked: true });
     if (!current) return false;
+
+    const linked = await tx.select({ id: maintenanceComponent.componentId }).from(maintenanceComponent)
+      .where(eq(maintenanceComponent.maintenanceId, current.id));
+    await lockHistoryComponents(tx, current.statusPageId, linked.map(({ id }) => id));
 
     const status = current.status === "scheduled" ? "in_progress" : "completed";
     const message = status === "in_progress"
@@ -29,6 +34,7 @@ export async function processDueMaintenance() {
     if (components.length) await tx.insert(maintenanceUpdateComponent)
       .values(components.map((entry) => ({ updateId: update.id, ...entry })));
     await tx.update(maintenance).set({ status, updatedAt: update.createdAt }).where(eq(maintenance.id, current.id));
+    await recordComponentStates(tx, linked.map(({ id }) => id), { type: "maintenance", id: current.id });
     if (current.notifyOnAutoTransition) await enqueueStatusNotification(tx, current.statusPageId, update.id, {
       kind: "maintenance", title: current.title, status, message,
       startsAt: current.startsAt.toISOString(), endsAt: current.endsAt.toISOString(),
