@@ -134,6 +134,13 @@
       "when": 1793217202021,
       "tag": "0018_tiny_ezekiel",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793217297243,
+      "tag": "0019_curly_peter_parker",
+      "breakpoints": true
     }
   ]
 }

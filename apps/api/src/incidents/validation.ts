@@ -21,6 +21,16 @@ export const createIncidentSchema = z.strictObject({
   notifySubscribers: z.boolean().optional(),
 });
 
+export const createHistoricalIncidentSchema = z.strictObject({
+  title: z.string().trim().min(1).max(200),
+  message,
+  occurredAt: z.iso.datetime({ offset: true }).refine((value) => {
+    const time = Date.parse(value);
+    return Number.isFinite(time) && time >= Date.parse("0001-01-01T00:00:00Z") && time <= Date.now();
+  }),
+  components: impacts,
+});
+
 export const createIncidentUpdateSchema = z.strictObject({
   status,
   message,
@@ -33,4 +43,5 @@ export const createIncidentUpdateSchema = z.strictObject({
   return !value.components?.some((entry) => removed.has(entry.componentId));
 });
 export type CreateIncident = z.infer<typeof createIncidentSchema>;
+export type CreateHistoricalIncident = z.infer<typeof createHistoricalIncidentSchema>;
 export type CreateIncidentUpdate = z.infer<typeof createIncidentUpdateSchema>;

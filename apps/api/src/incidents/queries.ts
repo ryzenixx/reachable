@@ -4,7 +4,7 @@ import { component } from "../db/schema/component";
 import { incident, incidentComponent, incidentUpdate, incidentUpdateComponent } from "../db/schema/incident";
 import { statusPage } from "../db/schema/status-page";
 import { postmortem } from "../db/schema/postmortem";
-import type { CreateIncident, CreateIncidentUpdate, IncidentHistoryQuery } from "./validation";
+import type { CreateHistoricalIncident, CreateIncident, CreateIncidentUpdate, IncidentHistoryQuery } from "./validation";
 import { enqueueStatusNotification } from "../notifications/queue";
 import { encodeCursor } from "../history/pagination";
 
@@ -50,12 +50,40 @@ export async function createIncident(pageId: string, input: CreateIncident) {
   });
 }
 
+export async function createHistoricalIncident(pageId: string, input: CreateHistoricalIncident) {
+  return db.transaction(async (tx) => {
+    const componentIds = input.components.map((entry) => entry.componentId);
+    const components = componentIds.length
+      ? await tx.select({ id: component.id, name: component.name }).from(component)
+        .where(and(eq(component.statusPageId, pageId), inArray(component.id, componentIds)))
+        .orderBy(component.id).for("share")
+      : [];
+    if (components.length !== componentIds.length) return undefined;
+    const [created] = await tx.insert(incident).values({
+      statusPageId: pageId, title: input.title, status: "resolved", occurredAt: new Date(input.occurredAt),
+    }).returning();
+    const [update] = await tx.insert(incidentUpdate).values({
+      incidentId: created.id, status: "resolved", message: input.message, componentsRecorded: true,
+    }).returning({ id: incidentUpdate.id });
+    if (input.components.length) {
+      await tx.insert(incidentComponent).values(input.components.map(({ componentId, status }) => ({
+        incidentId: created.id, componentId, impact: status,
+      })));
+      await tx.insert(incidentUpdateComponent).values(input.components.map(({ componentId, status }) => ({
+        updateId: update.id, componentId, name: components.find((entry) => entry.id === componentId)!.name, impact: status,
+      })));
+    }
+    return created;
+  });
+}
+
 export async function addIncidentUpdate(pageId: string, incidentId: string, input: CreateIncidentUpdate) {
   return db.transaction(async (tx) => {
-    const [existing] = await tx.select({ id: incident.id, title: incident.title }).from(incident)
+    const [existing] = await tx.select({ id: incident.id, title: incident.title, occurredAt: incident.occurredAt }).from(incident)
       .where(and(eq(incident.id, incidentId), eq(incident.statusPageId, pageId)))
       .for("update");
     if (!existing) return undefined;
+    if (existing.occurredAt && input.status !== "resolved") return "historical" as const;
 
     const linked = await tx.select({ id: incidentComponent.componentId }).from(incidentComponent)
       .where(eq(incidentComponent.incidentId, incidentId));
@@ -123,13 +151,14 @@ export async function listIncidents(pageId: string, options: IncidentHistoryQuer
     if (publicOnly) conditions.push(eq(statusPage.published, true));
     if (options.state === "active") conditions.push(sql`${incident.status} <> 'resolved'`);
     if (options.state === "past") conditions.push(eq(incident.status, "resolved"));
-    if (options.cursor) conditions.push(sql`(${incident.createdAt}, ${incident.id}) < (${options.cursor.timestamp}::timestamptz, ${options.cursor.id}::uuid)`);
+    const sortDate = sql`coalesce(${incident.occurredAt}, ${incident.createdAt})`;
+    if (options.cursor) conditions.push(sql`(${sortDate}, ${incident.id}) < (${options.cursor.timestamp}::timestamptz, ${options.cursor.id}::uuid)`);
     const rows = await tx.select({
       id: incident.id, title: incident.title, status: incident.status,
-      createdAt: incident.createdAt, updatedAt: incident.updatedAt,
-      cursorTimestamp: sql<string>`to_char(${incident.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      createdAt: incident.createdAt, updatedAt: incident.updatedAt, occurredAt: incident.occurredAt,
+      cursorTimestamp: sql<string>`to_char(${sortDate} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
     }).from(incident).innerJoin(statusPage, eq(statusPage.id, incident.statusPageId))
-      .where(and(...conditions)).orderBy(desc(incident.createdAt), desc(incident.id)).limit(options.limit + 1);
+      .where(and(...conditions)).orderBy(desc(sortDate), desc(incident.id)).limit(options.limit + 1);
     const incidents = rows.slice(0, options.limit);
     const last = incidents.at(-1);
     const nextCursor = rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null;

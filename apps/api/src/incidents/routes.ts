@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { pageBelongsToOrganization } from "../status-pages/queries";
-import { addIncidentUpdate, createIncident, listIncidents } from "./queries";
-import { createIncidentSchema, createIncidentUpdateSchema, incidentHistoryStates } from "./validation";
+import { addIncidentUpdate, createHistoricalIncident, createIncident, listIncidents } from "./queries";
+import { createHistoricalIncidentSchema, createIncidentSchema, createIncidentUpdateSchema, incidentHistoryStates } from "./validation";
 import { parseHistoryQuery } from "../history/pagination";
 import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
 import { editIncidentMessage, editIncidentTitle, listIncidentEdits } from "./edits";
@@ -74,6 +74,15 @@ incidentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   return c.json(created, 201);
 });
 
+incidentRoutes.post("/historical", requireOrganizationAdmin, async (c) => {
+  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  const parsed = createHistoricalIncidentSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+  const created = await createHistoricalIncident(c.get("statusPageId"), parsed.data);
+  if (!created) return c.json({ error: "Invalid components" }, 400);
+  return c.json(created, 201);
+});
+
 incidentRoutes.post("/:incidentId/updates", requireOrganizationAdmin, async (c) => {
   const incidentId = z.uuid().safeParse(c.req.param("incidentId"));
   if (!incidentId.success) return c.json({ error: "Invalid incident ID" }, 400);
@@ -84,6 +93,7 @@ incidentRoutes.post("/:incidentId/updates", requireOrganizationAdmin, async (c) 
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
   const update = await addIncidentUpdate(c.get("statusPageId"), incidentId.data, parsed.data);
   if (!update) return c.json({ error: "Not found" }, 404);
+  if (update === "historical") return c.json({ error: "Historical incident cannot be reopened" }, 409);
   if (update === "invalid_components") return c.json({ error: "Invalid components" }, 400);
   return c.json(update, 201);
 });

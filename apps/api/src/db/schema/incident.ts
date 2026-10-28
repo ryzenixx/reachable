@@ -1,4 +1,5 @@
-import { boolean, index, pgEnum, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, check, index, pgEnum, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { component, componentStatus } from "./component";
 import { statusPage } from "./status-page";
 
@@ -9,9 +10,11 @@ export const incident = pgTable("incident", {
   statusPageId: uuid("status_page_id").notNull().references(() => statusPage.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   status: incidentStatus("status").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("incident_page_created_idx").on(table.statusPageId, table.createdAt, table.id)]);
+}, (table) => [index("incident_page_occurred_idx").on(table.statusPageId, sql`coalesce(${table.occurredAt}, ${table.createdAt})`, table.id),
+  check("incident_occurred_at_check", sql`${table.occurredAt} is null or ${table.occurredAt} <= ${table.createdAt}`)]);
 
 export const incidentUpdate = pgTable("incident_update", {
   id: uuid("id").defaultRandom().primaryKey(),
