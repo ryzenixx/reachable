@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { maintenanceEdit } from "../db/schema/content-edit";
-import { maintenance, maintenanceUpdate } from "../db/schema/maintenance";
+import { maintenance, maintenanceReminder, maintenanceUpdate } from "../db/schema/maintenance";
 import { correctPendingNotifications } from "../notifications/corrections";
 
 export async function editMaintenanceTitle(pageId: string, maintenanceId: string, actorId: string, title: string) {
@@ -14,6 +14,7 @@ export async function editMaintenanceTitle(pageId: string, maintenanceId: string
       .where(eq(maintenance.id, maintenanceId)).returning();
     await tx.insert(maintenanceEdit).values({ maintenanceId, field: "title", previousValue: current.title, newValue: title, actorId });
     await correctPendingNotifications(tx, sql`select ${maintenanceUpdate.id} from ${maintenanceUpdate} where ${maintenanceUpdate.maintenanceId} = ${maintenanceId}::uuid`, "title", title);
+    await correctPendingNotifications(tx, sql`select ${maintenanceReminder.id} from ${maintenanceReminder} where ${maintenanceReminder.maintenanceId} = ${maintenanceId}::uuid`, "title", title);
     return updated;
   });
 }

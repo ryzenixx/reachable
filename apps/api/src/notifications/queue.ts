@@ -15,7 +15,7 @@ export async function enqueueStatusNotification(tx: Transaction, pageId: string,
       jsonb_build_object('kind', ${payload.kind}::text, 'pageName', ${statusPage.name},
         'title', ${payload.title}::text, 'status', ${payload.status}::text, 'message', ${payload.message}::text,
         'startsAt', ${payload.startsAt ?? null}::text, 'endsAt', ${payload.endsAt ?? null}::text,
-        'componentIds', to_jsonb(${affected}))
+        'componentIds', to_jsonb(${affected}), 'maintenanceId', ${payload.maintenanceId ?? null}::text)
     from ${subscription}
     inner join ${statusPage} on ${statusPage.id} = ${subscription.statusPageId}
     inner join ${organizationChannel} on ${organizationChannel.organizationId} = ${statusPage.organizationId}

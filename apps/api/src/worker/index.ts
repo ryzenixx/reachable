@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { processDueMaintenance } from "../maintenances/scheduler";
+import { processDueMaintenance, processDueMaintenanceReminder } from "../maintenances/scheduler";
 import { processNotificationDelivery } from "../notifications/delivery";
 
 const shutdown = new AbortController();
@@ -10,6 +10,9 @@ while (!shutdown.signal.aborted) {
   try {
     for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
       if (!await processDueMaintenance()) break;
+    }
+    for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
+      if (!await processDueMaintenanceReminder()) break;
     }
   } catch (error) {
     console.error("Failed to process scheduled maintenances:", error);

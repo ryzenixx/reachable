@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, pgEnum, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, pgEnum, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { component } from "./component";
 import { statusPage } from "./status-page";
 
-export const maintenanceStatus = pgEnum("maintenance_status", ["scheduled", "in_progress", "verifying", "completed"]);
+export const maintenanceStatus = pgEnum("maintenance_status", ["scheduled", "in_progress", "verifying", "completed", "cancelled"]);
 
 export const maintenance = pgTable("maintenance", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -15,12 +15,20 @@ export const maintenance = pgTable("maintenance", {
   autoStart: boolean("auto_start").default(false).notNull(),
   autoComplete: boolean("auto_complete").default(false).notNull(),
   notifyOnAutoTransition: boolean("notify_on_auto_transition").default(false).notNull(),
+  reminderMinutes: integer("reminder_minutes"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("maintenance_status_page_id_idx").on(table.statusPageId),
   index("maintenance_auto_start_idx").on(table.startsAt).where(sql`${table.status} = 'scheduled' and ${table.autoStart}`),
   index("maintenance_auto_complete_idx").on(table.endsAt).where(sql`${table.status} in ('in_progress', 'verifying') and ${table.autoComplete}`),
-  check("maintenance_window_check", sql`${table.endsAt} > ${table.startsAt}`)]);
+  check("maintenance_window_check", sql`${table.endsAt} > ${table.startsAt}`),
+  check("maintenance_reminder_minutes_check", sql`${table.reminderMinutes} is null or ${table.reminderMinutes} between 1 and 10080`)]);
+
+export const maintenanceReminder = pgTable("maintenance_reminder", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  maintenanceId: uuid("maintenance_id").notNull().references(() => maintenance.id, { onDelete: "cascade" }),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+}, (table) => [unique("maintenance_reminder_window_unique").on(table.maintenanceId, table.startsAt)]);
 
 export const maintenanceComponent = pgTable("maintenance_component", {
   maintenanceId: uuid("maintenance_id").notNull().references(() => maintenance.id, { onDelete: "cascade" }),

@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { component } from "../db/schema/component";
-import { maintenance, maintenanceComponent, maintenanceUpdate, maintenanceUpdateComponent } from "../db/schema/maintenance";
+import { maintenance, maintenanceComponent, maintenanceReminder, maintenanceUpdate, maintenanceUpdateComponent } from "../db/schema/maintenance";
 import { enqueueStatusNotification } from "../notifications/queue";
 
 export async function processDueMaintenance() {
@@ -32,6 +32,29 @@ export async function processDueMaintenance() {
       kind: "maintenance", title: current.title, status, message,
       startsAt: current.startsAt.toISOString(), endsAt: current.endsAt.toISOString(),
       componentIds: components.map((entry) => entry.componentId),
+    });
+    return true;
+  });
+}
+
+export async function processDueMaintenanceReminder() {
+  return db.transaction(async (tx) => {
+    const [current] = await tx.select().from(maintenance).where(and(
+      eq(maintenance.status, "scheduled"),
+      sql`${maintenance.reminderMinutes} is not null`,
+      sql`${maintenance.startsAt} > now()`,
+      sql`${maintenance.startsAt} <= now() + ${maintenance.reminderMinutes} * interval '1 minute'`,
+      sql`not exists (select 1 from ${maintenanceReminder} where ${maintenanceReminder.maintenanceId} = ${maintenance.id} and ${maintenanceReminder.startsAt} = ${maintenance.startsAt})`,
+    )).orderBy(asc(maintenance.startsAt), asc(maintenance.id)).limit(1).for("update", { skipLocked: true });
+    if (!current) return false;
+    const [reminder] = await tx.insert(maintenanceReminder).values({ maintenanceId: current.id, startsAt: current.startsAt })
+      .returning({ id: maintenanceReminder.id });
+    const components = await tx.select({ id: maintenanceComponent.componentId }).from(maintenanceComponent)
+      .where(eq(maintenanceComponent.maintenanceId, current.id));
+    await enqueueStatusNotification(tx, current.statusPageId, reminder.id, {
+      kind: "maintenance_reminder", maintenanceId: current.id, title: current.title, status: current.status,
+      message: "This scheduled maintenance will begin soon.", startsAt: current.startsAt.toISOString(),
+      endsAt: current.endsAt.toISOString(), componentIds: components.map(({ id }) => id),
     });
     return true;
   });

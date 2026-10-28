@@ -5,6 +5,7 @@ import { maintenance, maintenanceComponent, maintenanceUpdate, maintenanceUpdate
 import { statusPage } from "../db/schema/status-page";
 import type { CreateMaintenance, CreateMaintenanceUpdate } from "./validation";
 import { enqueueStatusNotification } from "../notifications/queue";
+import { notificationDelivery } from "../db/schema/notification";
 
 export async function createMaintenance(pageId: string, input: CreateMaintenance) {
   return db.transaction(async (tx) => {
@@ -19,6 +20,7 @@ export async function createMaintenance(pageId: string, input: CreateMaintenance
     const [created] = await tx.insert(maintenance).values({
       statusPageId: pageId, title: input.title, startsAt, endsAt,
       autoStart: input.autoStart, autoComplete: input.autoComplete, notifyOnAutoTransition: input.notifyOnAutoTransition,
+      reminderMinutes: input.reminderMinutes,
     }).returning();
     const [update] = await tx.insert(maintenanceUpdate).values({
       maintenanceId: created.id, status: "scheduled", message: input.message, startsAt, endsAt,
@@ -42,6 +44,8 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
       .where(and(eq(maintenance.id, maintenanceId), eq(maintenance.statusPageId, pageId))).for("update");
     if (!current) return undefined;
     if (current.status === "completed" && input.status !== "completed") return "completed" as const;
+    if (current.status === "cancelled" && input.status !== "cancelled") return "cancelled" as const;
+    if (input.status === "cancelled" && current.status !== "scheduled" && current.status !== "cancelled") return "cannot_cancel" as const;
     const startsAt = input.startsAt ? new Date(input.startsAt) : current.startsAt;
     const endsAt = input.endsAt ? new Date(input.endsAt) : current.endsAt;
     if (endsAt <= startsAt) return "invalid_window" as const;
@@ -70,9 +74,18 @@ export async function addMaintenanceUpdate(pageId: string, maintenanceId: string
       .values(components.map((entry) => ({ updateId: update.id, ...entry })));
     await tx.update(maintenance).set({
       status: input.status, startsAt, endsAt, updatedAt: update.createdAt,
-      autoStart: input.autoStart, autoComplete: input.autoComplete, notifyOnAutoTransition: input.notifyOnAutoTransition,
+      autoStart: input.status === "cancelled" ? false : input.autoStart,
+      autoComplete: input.status === "cancelled" ? false : input.autoComplete,
+      notifyOnAutoTransition: input.status === "cancelled" ? false : input.notifyOnAutoTransition,
+      reminderMinutes: input.status === "cancelled" ? null : input.reminderMinutes,
     })
       .where(eq(maintenance.id, maintenanceId));
+    if (input.status === "cancelled" && current.status !== "cancelled") {
+      await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
+        .where(and(eq(notificationDelivery.status, "pending"), inArray(notificationDelivery.eventId,
+          tx.select({ id: maintenanceUpdate.id }).from(maintenanceUpdate)
+            .where(eq(maintenanceUpdate.maintenanceId, maintenanceId)))));
+    }
     if (input.notifySubscribers) await enqueueStatusNotification(tx, pageId, update.id, {
       kind: "maintenance", title: current.title, status: input.status, message: input.message,
       startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
@@ -89,6 +102,7 @@ export async function listMaintenances(pageId: string, publicOnly = false) {
     id: maintenance.id, title: maintenance.title, status: maintenance.status, startsAt: maintenance.startsAt,
     endsAt: maintenance.endsAt, createdAt: maintenance.createdAt, updatedAt: maintenance.updatedAt,
     autoStart: maintenance.autoStart, autoComplete: maintenance.autoComplete, notifyOnAutoTransition: maintenance.notifyOnAutoTransition,
+    reminderMinutes: maintenance.reminderMinutes,
     autoStartMissed: sql<boolean>`${maintenance.status} = 'scheduled' and ${maintenance.autoStart} and ${maintenance.endsAt} <= now()`,
   }).from(maintenance).innerJoin(statusPage, eq(statusPage.id, maintenance.statusPageId))
     .where(and(...conditions)).orderBy(desc(maintenance.startsAt), desc(maintenance.id));
@@ -102,8 +116,8 @@ export async function listMaintenances(pageId: string, publicOnly = false) {
   const components = await db.select({ maintenanceId: maintenanceComponent.maintenanceId, id: component.id, name: component.name })
     .from(maintenanceComponent).innerJoin(component, eq(component.id, maintenanceComponent.componentId))
     .where(inArray(maintenanceComponent.maintenanceId, ids)).orderBy(component.position, component.createdAt, component.id);
-  return items.map(({ autoStart, autoComplete, notifyOnAutoTransition, autoStartMissed, ...item }) => ({
-    ...item, ...(!publicOnly && { autoStart, autoComplete, notifyOnAutoTransition, autoStartMissed }),
+  return items.map(({ autoStart, autoComplete, notifyOnAutoTransition, reminderMinutes, autoStartMissed, ...item }) => ({
+    ...item, ...(!publicOnly && { autoStart, autoComplete, notifyOnAutoTransition, reminderMinutes, autoStartMissed }),
     updates: updates.filter((entry) => entry.maintenanceId === item.id).map(({ maintenanceId: _, ...entry }) => ({
       ...entry, components: snapshots.filter((snapshot) => snapshot.updateId === entry.id)
         .map(({ componentId, name }) => ({ id: componentId, name })),

@@ -3,7 +3,7 @@ import { check, index, integer, jsonb, pgEnum, pgTable, timestamp, uniqueIndex, 
 import { subscription } from "./subscription";
 
 export type StatusNotification = {
-  kind: "incident" | "maintenance" | "postmortem";
+  kind: "incident" | "maintenance" | "maintenance_reminder" | "postmortem";
   pageName: string;
   title: string;
   status: string;
@@ -11,6 +11,7 @@ export type StatusNotification = {
   startsAt?: string;
   endsAt?: string;
   componentIds?: string[];
+  maintenanceId?: string;
 };
 
 export const deliveryStatus = pgEnum("notification_delivery_status", ["pending", "sent", "failed", "skipped"]);

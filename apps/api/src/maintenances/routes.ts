@@ -70,6 +70,8 @@ maintenanceRoutes.post("/:maintenanceId/updates", requireOrganizationAdmin, asyn
   const update = await addMaintenanceUpdate(c.get("statusPageId"), id.data, parsed.data);
   if (!update) return c.json({ error: "Not found" }, 404);
   if (update === "completed") return c.json({ error: "Completed maintenance cannot be reopened" }, 409);
+  if (update === "cancelled") return c.json({ error: "Cancelled maintenance cannot be reopened" }, 409);
+  if (update === "cannot_cancel") return c.json({ error: "Only scheduled maintenance can be cancelled" }, 409);
   if (update === "invalid_window") return c.json({ error: "Invalid maintenance window" }, 400);
   if (update === "invalid_components") return c.json({ error: "Invalid components" }, 400);
   return c.json(update, 201);

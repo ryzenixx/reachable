@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { notificationDelivery } from "../db/schema/notification";
+import { maintenance } from "../db/schema/maintenance";
 import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionComponent, subscriptionToken } from "../db/schema/subscription";
 import { hashToken, tokenUrl } from "../subscriptions/tokens";
@@ -45,6 +46,24 @@ export async function processNotificationDelivery() {
       await tx.update(notificationDelivery)
         .set({ nextAttemptAt: sql`now() + interval '10 seconds'` }).where(eq(notificationDelivery.id, delivery.id));
     };
+    if (delivery.payload.kind === "maintenance_reminder") {
+      const [current] = await tx.select().from(maintenance)
+        .where(eq(maintenance.id, delivery.payload.maintenanceId ?? "00000000-0000-0000-0000-000000000000"))
+        .for("share", { skipLocked: true });
+      if (!current) {
+        const [exists] = await tx.select({ id: maintenance.id }).from(maintenance)
+          .where(eq(maintenance.id, delivery.payload.maintenanceId ?? "00000000-0000-0000-0000-000000000000"));
+        if (exists) { await postpone(); return; }
+      }
+      if (!current || current.status !== "scheduled" || current.reminderMinutes === null ||
+        current.startsAt.toISOString() !== delivery.payload.startsAt || current.endsAt.toISOString() !== delivery.payload.endsAt ||
+        current.startsAt <= new Date() || current.startsAt.getTime() > Date.now() + current.reminderMinutes * 60_000) {
+        await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
+        await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
+          .where(eq(notificationDelivery.id, delivery.id));
+        return;
+      }
+    }
     const [recipient] = await tx.select().from(subscription).where(eq(subscription.id, delivery.subscriptionId))
       .for("update", { skipLocked: true });
     if (!recipient) { await postpone(); return; }

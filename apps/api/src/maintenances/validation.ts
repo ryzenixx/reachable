@@ -16,6 +16,7 @@ export const createMaintenanceSchema = z.strictObject({
   autoComplete: z.boolean().optional(),
   notifySubscribers: z.boolean().optional(),
   notifyOnAutoTransition: z.boolean().optional(),
+  reminderMinutes: z.int().min(1).max(10080).nullable().optional(),
 }).refine((value) => Date.parse(value.endsAt) > Date.parse(value.startsAt));
 
 export const createMaintenanceUpdateSchema = z.strictObject({
@@ -28,6 +29,7 @@ export const createMaintenanceUpdateSchema = z.strictObject({
   autoComplete: z.boolean().optional(),
   notifySubscribers: z.boolean().optional(),
   notifyOnAutoTransition: z.boolean().optional(),
+  reminderMinutes: z.int().min(1).max(10080).nullable().optional(),
 });
 
 export type CreateMaintenance = z.infer<typeof createMaintenanceSchema>;
