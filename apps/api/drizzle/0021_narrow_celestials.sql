@@ -1,0 +1,1 @@
+CREATE INDEX "subscription_page_created_idx" ON "subscription" USING btree ("status_page_id","created_at","id");

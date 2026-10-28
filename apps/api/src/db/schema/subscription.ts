@@ -19,7 +19,8 @@ export const subscription = pgTable("subscription", {
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   lastRequestedAt: timestamp("last_requested_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [uniqueIndex("subscription_page_channel_destination_idx").on(table.statusPageId, table.channel, table.destination)]);
+}, (table) => [uniqueIndex("subscription_page_channel_destination_idx").on(table.statusPageId, table.channel, table.destination),
+  index("subscription_page_created_idx").on(table.statusPageId, table.createdAt, table.id)]);
 
 export const subscriptionComponent = pgTable("subscription_component", {
   subscriptionId: uuid("subscription_id").notNull().references(() => subscription.id, { onDelete: "cascade" }),

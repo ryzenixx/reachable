@@ -5,7 +5,9 @@ import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionRateLimit, subscriptionToken } from "../db/schema/subscription";
 import { sendSubscriptionConfirmation } from "../notifications/email/messages";
 import { hashToken, tokenUrl } from "./tokens";
-import { recordPageActivity } from "../activity/record";
+import { recordPageActivity, type Actor } from "../activity/record";
+import { updatePreferences } from "./preferences";
+import type { SubscriptionPreferences } from "./validation";
 
 export async function getPublicChannels(slug: string) {
   const [page] = await db.select({ organizationId: statusPage.organizationId }).from(statusPage)
@@ -16,28 +18,43 @@ export async function getPublicChannels(slug: string) {
   return email?.enabled ? ["email"] : [];
 }
 
-export async function requestEmailSubscription(slug: string, email: string) {
+type SubscriptionRequest =
+  | { type: "public"; slug: string; email: string }
+  | { type: "admin"; pageId: string; email: string; actorId: string; preferences?: SubscriptionPreferences }
+  | { type: "resend"; pageId: string; subscriptionId: string; actorId: string };
+
+export async function requestEmailSubscription(input: SubscriptionRequest) {
   return db.transaction(async (tx) => {
     const [page] = await tx.select().from(statusPage)
-      .where(and(eq(statusPage.slug, slug), eq(statusPage.published, true))).for("update");
+      .where(input.type === "public" ? and(eq(statusPage.slug, input.slug), eq(statusPage.published, true)) : eq(statusPage.id, input.pageId)).for("update");
     if (!page) return "not_found" as const;
+    if (!page.published) return "unavailable" as const;
     const [channel] = await tx.select().from(organizationChannel)
-      .where(and(eq(organizationChannel.organizationId, page.organizationId), eq(organizationChannel.channel, "email")))
-      .for("share");
+      .where(and(eq(organizationChannel.organizationId, page.organizationId), eq(organizationChannel.channel, "email"))).for("share");
     if (!channel?.enabled) return "unavailable" as const;
-    const [limit] = await tx.select({
-      count: subscriptionRateLimit.count,
+    const [existing] = await tx.select({
+      id: subscription.id, destination: subscription.destination, confirmedAt: subscription.confirmedAt,
+      recent: sql<boolean>`${subscription.lastRequestedAt} > now() - interval '5 minutes'`,
+    }).from(subscription).where(and(eq(subscription.statusPageId, page.id), eq(subscription.channel, "email"),
+      input.type === "resend" ? eq(subscription.id, input.subscriptionId) : eq(subscription.destination, input.email))).for("update");
+    if (input.type === "resend" && !existing) return "not_found" as const;
+    if (input.type !== "public" && existing?.confirmedAt) return "already_confirmed" as const;
+    if (existing?.recent) return input.type === "public" ? "accepted" as const : "cooldown" as const;
+    const [limit] = await tx.select({ count: subscriptionRateLimit.count,
       inWindow: sql<boolean>`${subscriptionRateLimit.windowStartedAt} > now() - interval '1 minute'`,
     }).from(subscriptionRateLimit).where(eq(subscriptionRateLimit.statusPageId, page.id));
-    if (limit?.inWindow && limit.count >= 30) return "accepted" as const;
-    const [existing] = await tx.select({
-      id: subscription.id,
-      recent: sql<boolean>`${subscription.lastRequestedAt} > now() - interval '5 minutes'`,
-    }).from(subscription).where(and(eq(subscription.statusPageId, page.id), eq(subscription.channel, "email"), eq(subscription.destination, email)));
-    if (existing?.recent) return "accepted" as const;
+    if (limit?.inWindow && limit.count >= 30) return input.type === "public" ? "accepted" as const : "rate_limited" as const;
+    const email = input.type === "resend" ? existing!.destination : input.email;
     const [entry] = await tx.insert(subscription).values({ statusPageId: page.id, channel: "email", destination: email })
       .onConflictDoUpdate({ target: [subscription.statusPageId, subscription.channel, subscription.destination],
-        set: { lastRequestedAt: sql`now()` } }).returning({ id: subscription.id });
+        set: { lastRequestedAt: sql`now()` } }).returning();
+    if (!existing && input.type === "admin" && input.preferences) {
+      const result = await updatePreferences(tx, entry, input.preferences, { type: "member", id: input.actorId });
+      if (result === "invalid_components") {
+        await tx.delete(subscription).where(eq(subscription.id, entry.id));
+        return result;
+      }
+    }
     await tx.insert(subscriptionRateLimit).values({ statusPageId: page.id, count: 1, windowStartedAt: sql`now()` })
       .onConflictDoUpdate({ target: subscriptionRateLimit.statusPageId, set: {
         count: limit?.inWindow ? limit.count + 1 : 1,
@@ -51,8 +68,11 @@ export async function requestEmailSubscription(slug: string, email: string) {
       { hash: hashToken(unsubscribe), subscriptionId: entry.id, purpose: "unsubscribe" },
     ]);
     await sendSubscriptionConfirmation(email, page.name, tokenUrl("confirm", confirm), tokenUrl("unsubscribe", unsubscribe));
-    if (!existing) await recordPageActivity(tx, page.id, { actor: { type: "subscriber" }, action: "subscription.requested", resourceType: "subscription", resourceId: entry.id, details: { channel: "email" } });
-    return "accepted" as const;
+    const actor: Actor = input.type === "public" ? { type: "subscriber" } : { type: "member", id: input.actorId };
+    if (!existing || input.type !== "public") await recordPageActivity(tx, page.id, { actor,
+      action: existing ? "subscription.confirmation_resent" : "subscription.requested",
+      resourceType: "subscription", resourceId: entry.id, details: { channel: "email" } });
+    return input.type === "public" ? "accepted" as const : "sent" as const;
   });
 }
 

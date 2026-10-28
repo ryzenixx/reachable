@@ -13,6 +13,7 @@ import { getApplicationUrl } from "./organizations/invitations";
 import { resolvePublicSlug } from "./status-pages/queries";
 import { activityRoutes } from "./activity/routes";
 import { withAuthActor } from "./activity/auth-context";
+import { adminSubscriptionRoutes } from "./subscriptions/admin-routes";
 
 const app = new Hono();
 
@@ -51,5 +52,6 @@ app.route("/api/organizations/:organizationId/status-pages/:statusPageId/compone
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/incidents", incidentRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/maintenances", maintenanceRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/notifications", notificationRoutes);
+app.route("/api/organizations/:organizationId/status-pages/:statusPageId/subscriptions", adminSubscriptionRoutes);
 
 export default app;

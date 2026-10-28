@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getPublicChannels, requestEmailSubscription, useSubscriptionToken } from "./queries";
 import { getSubscriptionPreferences, setSubscriptionPreferences } from "./preferences";
+import { emailSchema, preferencesSchema } from "./validation";
 
 export const publicSubscriptionRoutes = new Hono();
 
@@ -15,11 +16,11 @@ publicSubscriptionRoutes.get("/:slug/subscription-channels", async (c) => {
 publicSubscriptionRoutes.post("/:slug/subscriptions", async (c) => {
   c.header("Cache-Control", "no-store");
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
-  const input = z.strictObject({ channel: z.literal("email"), email: z.email().max(254).transform((value) => value.toLowerCase()) })
+  const input = z.strictObject({ channel: z.literal("email"), email: emailSchema })
     .safeParse(await c.req.json().catch(() => null));
   if (!input.success) return c.json({ error: "Invalid input" }, 400);
   try {
-    const result = await requestEmailSubscription(c.req.param("slug"), input.data.email);
+    const result = await requestEmailSubscription({ type: "public", slug: c.req.param("slug"), email: input.data.email });
     if (result === "not_found") return c.json({ error: "Not found" }, 404);
     if (result === "unavailable") return c.json({ error: "Channel unavailable" }, 400);
     return c.json({ message: "If eligible, a confirmation email will be sent." }, 202);
@@ -38,11 +39,6 @@ subscriptionActionRoutes.use("*", async (c, next) => {
   await next();
 });
 
-const preferencesSchema = z.discriminatedUnion("scope", [
-  z.strictObject({ scope: z.literal("all") }),
-  z.strictObject({ scope: z.literal("selected"), componentIds: z.array(z.uuid()).min(1).max(100)
-    .refine((ids) => new Set(ids).size === ids.length) }),
-]);
 
 subscriptionActionRoutes.get("/manage/:token", async (c) => {
   const token = c.req.param("token");

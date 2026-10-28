@@ -4,9 +4,9 @@ import { component } from "../db/schema/component";
 import { statusPage } from "../db/schema/status-page";
 import { subscription, subscriptionComponent, subscriptionToken } from "../db/schema/subscription";
 import { hashToken } from "./tokens";
-import { recordPageActivity } from "../activity/record";
+import { recordPageActivity, type Actor } from "../activity/record";
+import type { SubscriptionPreferences } from "./validation";
 
-export type SubscriptionPreferences = { scope: "all" } | { scope: "selected"; componentIds: string[] };
 
 async function findSubscriptionId(token: string) {
   const [entry] = await db.select({ id: subscriptionToken.subscriptionId }).from(subscriptionToken)
@@ -46,17 +46,28 @@ export async function setSubscriptionPreferences(token: string, input: Subscript
     const [page] = await tx.select({ id: statusPage.id }).from(statusPage)
       .where(and(eq(statusPage.id, current.statusPageId), eq(statusPage.published, true)));
     if (!page) return "invalid_token" as const;
-    if (input.scope === "selected") {
-      const validComponents = await tx.select({ id: component.id }).from(component)
-        .where(and(eq(component.statusPageId, current.statusPageId), inArray(component.id, input.componentIds)))
-        .orderBy(component.id).for("share");
-      if (validComponents.length !== input.componentIds.length) return "invalid_components" as const;
-    }
-    await tx.delete(subscriptionComponent).where(eq(subscriptionComponent.subscriptionId, id));
-    if (input.scope === "selected") await tx.insert(subscriptionComponent)
-      .values(input.componentIds.map((componentId) => ({ subscriptionId: id, componentId })));
-    await tx.update(subscription).set({ allComponents: input.scope === "all" }).where(eq(subscription.id, id));
-    await recordPageActivity(tx, current.statusPageId, { actor: { type: "subscriber" }, action: "subscription.preferences_updated", resourceType: "subscription", resourceId: id, details: { scope: input.scope } });
-    return "updated" as const;
+    return updatePreferences(tx, current, input, { type: "subscriber" });
   });
+}
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export async function updatePreferences(tx: Transaction, current: typeof subscription.$inferSelect, input: SubscriptionPreferences, actor: Actor) {
+  if (input.scope === "selected") {
+    const validComponents = await tx.select({ id: component.id }).from(component)
+      .where(and(eq(component.statusPageId, current.statusPageId), inArray(component.id, input.componentIds)))
+      .orderBy(component.id).for("share");
+    if (validComponents.length !== input.componentIds.length) return "invalid_components" as const;
+  }
+  const selected = await tx.select({ id: subscriptionComponent.componentId }).from(subscriptionComponent)
+    .where(eq(subscriptionComponent.subscriptionId, current.id));
+  const nextIds = input.scope === "selected" ? input.componentIds : [];
+  const oldIds = new Set(selected.map(({ id }) => id));
+  if (current.allComponents === (input.scope === "all") && oldIds.size === nextIds.length && nextIds.every((id) => oldIds.has(id))) return "updated" as const;
+  await tx.delete(subscriptionComponent).where(eq(subscriptionComponent.subscriptionId, current.id));
+  if (input.scope === "selected") await tx.insert(subscriptionComponent)
+    .values(input.componentIds.map((componentId) => ({ subscriptionId: current.id, componentId })));
+  await tx.update(subscription).set({ allComponents: input.scope === "all" }).where(eq(subscription.id, current.id));
+  await recordPageActivity(tx, current.statusPageId, { actor, action: "subscription.preferences_updated", resourceType: "subscription", resourceId: current.id, details: { scope: input.scope } });
+  return "updated" as const;
 }
