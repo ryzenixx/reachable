@@ -1,7 +1,8 @@
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { statusPage } from "../db/schema/status-page";
-import { organizationChannel, subscription, subscriptionRateLimit, subscriptionToken } from "../db/schema/subscription";
+import { organizationChannel, subscription, subscriptionRateLimit, subscriptionToken, webhookSubscription } from "../db/schema/subscription";
+import { readWebhookSecret } from "../webhooks/secrets";
 import { hashToken } from "./tokens";
 import { confirmationDelivery } from "../db/schema/notification";
 import { recordPageActivity, type Actor } from "../activity/record";
@@ -12,9 +13,9 @@ export async function getPublicChannels(slug: string) {
   const [page] = await db.select({ organizationId: statusPage.organizationId }).from(statusPage)
     .where(and(eq(statusPage.slug, slug), eq(statusPage.published, true)));
   if (!page) return undefined;
-  const [email] = await db.select({ enabled: organizationChannel.enabled }).from(organizationChannel)
-    .where(and(eq(organizationChannel.organizationId, page.organizationId), eq(organizationChannel.channel, "email")));
-  return email?.enabled ? ["email"] : [];
+  const channels = await db.select({ channel: organizationChannel.channel }).from(organizationChannel)
+    .where(and(eq(organizationChannel.organizationId, page.organizationId), eq(organizationChannel.enabled, true)));
+  return channels.map(({ channel }) => channel).filter((channel) => channel === "email" || channel === "webhook");
 }
 
 type SubscriptionRequest =
@@ -99,6 +100,11 @@ export async function useSubscriptionToken(token: string, purpose: "confirm" | "
       .where(and(eq(confirmationDelivery.subscriptionId, locked.id), eq(confirmationDelivery.status, "pending")));
     await tx.delete(subscriptionToken).where(and(eq(subscriptionToken.subscriptionId, locked.id), eq(subscriptionToken.purpose, "confirm")));
     if (!locked.confirmedAt) await recordPageActivity(tx, locked.statusPageId, { actor: { type: "subscriber" }, action: "subscription.confirmed", resourceType: "subscription", resourceId: locked.id, details: { channel: locked.channel } });
+    if (locked.channel === "webhook") {
+      const [webhook] = await tx.select().from(webhookSubscription).where(eq(webhookSubscription.subscriptionId, locked.id));
+      if (!webhook) throw new Error("Webhook subscription is missing");
+      return readWebhookSecret(webhook.encryptedSecret, locked.id);
+    }
     return true;
   });
 }

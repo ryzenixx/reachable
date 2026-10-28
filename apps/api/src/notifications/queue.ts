@@ -21,7 +21,7 @@ export async function enqueueStatusNotification(tx: Transaction, pageId: string,
     inner join ${organizationChannel} on ${organizationChannel.organizationId} = ${statusPage.organizationId}
       and ${organizationChannel.channel} = ${subscription.channel} and ${organizationChannel.enabled} = true
     where ${statusPage.id} = ${pageId}::uuid and ${statusPage.published} = true
-      and ${subscription.confirmedAt} is not null and ${subscription.channel} = 'email'
+      and ${subscription.confirmedAt} is not null and ${subscription.channel} in ('email', 'webhook')
       and (${subscription.allComponents} or cardinality(${affected}) = 0 or exists (
         select 1 from ${subscriptionComponent}
         where ${subscriptionComponent.subscriptionId} = ${subscription.id}

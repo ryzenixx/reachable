@@ -4,10 +4,12 @@ import { db } from "../db";
 import { notificationDelivery } from "../db/schema/notification";
 import { maintenance } from "../db/schema/maintenance";
 import { statusPage } from "../db/schema/status-page";
-import { organizationChannel, subscription, subscriptionComponent, subscriptionToken } from "../db/schema/subscription";
+import { organizationChannel, subscription, subscriptionComponent, subscriptionToken, webhookSubscription } from "../db/schema/subscription";
 import { hashToken, tokenUrl } from "../subscriptions/tokens";
 import { sendStatusUpdate } from "./email/messages";
 import { getPageEmailBrand } from "../branding/email";
+import { sendWebhook } from "../webhooks/transport";
+import { readWebhookSecret } from "../webhooks/secrets";
 
 async function claimDelivery() {
   return db.transaction(async (tx) => {
@@ -85,7 +87,7 @@ export async function processNotificationDelivery() {
         .where(and(eq(subscriptionComponent.subscriptionId, recipient.id), inArray(subscriptionComponent.componentId, delivery.payload.componentIds))).limit(1);
       relevant = Boolean(match);
     }
-    if (!page.published || !channel?.enabled || !recipient.confirmedAt || recipient.channel !== "email" || !relevant) {
+    if (!page.published || !channel?.enabled || !recipient.confirmedAt || !["email", "webhook"].includes(recipient.channel) || !relevant) {
       await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
       await tx.update(notificationDelivery).set({ status: "skipped", processedAt: sql`clock_timestamp()` })
         .where(eq(notificationDelivery.id, delivery.id));
@@ -93,9 +95,19 @@ export async function processNotificationDelivery() {
     }
     const attempts = delivery.attempts + 1;
     try {
-      const brand = await getPageEmailBrand(tx, page.id, page.name);
-      await sendStatusUpdate(recipient.destination, { ...delivery.payload, pageName: page.name }, tokenUrl("unsubscribe", claim.token), brand);
+      if (recipient.channel === "email") {
+        const brand = await getPageEmailBrand(tx, page.id, page.name);
+        await sendStatusUpdate(recipient.destination, { ...delivery.payload, pageName: page.name }, tokenUrl("unsubscribe", claim.token), brand);
+      } else {
+        const [webhook] = await tx.select().from(webhookSubscription).where(eq(webhookSubscription.subscriptionId, recipient.id));
+        if (!webhook) throw new Error("Webhook subscription is missing");
+        const body = JSON.stringify({ type: `status.${delivery.payload.kind}`, timestamp: delivery.createdAt.toISOString(),
+          data: { ...delivery.payload, pageName: page.name, pageId: page.id, pageSlug: page.slug } });
+        await sendWebhook(recipient.destination, readWebhookSecret(webhook.encryptedSecret, recipient.id), delivery.eventId, body);
+        await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
+      }
     } catch {
+      if (recipient.channel === "webhook") await tx.delete(subscriptionToken).where(eq(subscriptionToken.hash, hashToken(claim.token)));
       const failed = attempts >= 8;
       const delaySeconds = Math.min(60 * 2 ** (attempts - 1), 3600);
       await tx.update(notificationDelivery).set({ status: failed ? "failed" : "pending", attempts,

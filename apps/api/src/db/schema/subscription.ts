@@ -28,6 +28,12 @@ export const subscriptionComponent = pgTable("subscription_component", {
 }, (table) => [primaryKey({ columns: [table.subscriptionId, table.componentId] }),
   index("subscription_component_component_id_idx").on(table.componentId)]);
 
+export const webhookSubscription = pgTable("webhook_subscription", {
+  subscriptionId: uuid("subscription_id").primaryKey().references(() => subscription.id, { onDelete: "cascade" }),
+  contactEmail: text("contact_email").notNull(),
+  encryptedSecret: text("encrypted_secret").notNull(),
+});
+
 export const subscriptionToken = pgTable("subscription_token", {
   hash: text("hash").primaryKey(),
   subscriptionId: uuid("subscription_id").notNull().references(() => subscription.id, { onDelete: "cascade" }),

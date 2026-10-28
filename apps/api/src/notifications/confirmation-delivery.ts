@@ -3,7 +3,7 @@ import { and, asc, eq, lte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { confirmationDelivery } from "../db/schema/notification";
 import { statusPage } from "../db/schema/status-page";
-import { organizationChannel, subscription, subscriptionToken } from "../db/schema/subscription";
+import { organizationChannel, subscription, subscriptionToken, webhookSubscription } from "../db/schema/subscription";
 import { hashToken, tokenUrl } from "../subscriptions/tokens";
 import { sendSubscriptionConfirmation } from "./email/messages";
 import { getPageEmailBrand } from "../branding/email";
@@ -71,7 +71,7 @@ export async function processConfirmationDelivery() {
         .where(and(eq(organizationChannel.organizationId, page.organizationId), eq(organizationChannel.channel, recipient.channel)));
       if (exists) { await postpone(); return; }
     }
-    if (delivery.expiresAt <= new Date() || !page.published || !channel?.enabled || recipient.channel !== "email") {
+    if (delivery.expiresAt <= new Date() || !page.published || !channel?.enabled || !["email", "webhook"].includes(recipient.channel)) {
       await discardTokens();
       const expired = delivery.expiresAt <= new Date();
       await tx.update(confirmationDelivery).set({ status: expired ? "failed" : "skipped", reason: expired ? "expired" : "unavailable", processedAt: sql`clock_timestamp()` })
@@ -81,7 +81,11 @@ export async function processConfirmationDelivery() {
     const attempts = delivery.attempts + 1;
     try {
       const brand = await getPageEmailBrand(tx, page.id, page.name);
-      await sendSubscriptionConfirmation(recipient.destination, page.name, tokenUrl("confirm", claim.confirm), tokenUrl("unsubscribe", claim.unsubscribe), brand);
+      const [webhook] = recipient.channel === "webhook"
+        ? await tx.select().from(webhookSubscription).where(eq(webhookSubscription.subscriptionId, recipient.id)) : [];
+      if (recipient.channel === "webhook" && !webhook) throw new Error("Webhook subscription is missing");
+      await sendSubscriptionConfirmation(webhook?.contactEmail ?? recipient.destination, page.name, tokenUrl("confirm", claim.confirm), tokenUrl("unsubscribe", claim.unsubscribe), brand, false,
+        webhook ? recipient.destination : undefined);
     } catch {
       const failed = attempts >= 8;
       const delaySeconds = Math.min(60 * 2 ** (attempts - 1), 3600);

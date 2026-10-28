@@ -25,8 +25,8 @@ export async function sendStatusUpdate(to: string, update: StatusNotification, u
     ...await renderEmail(<StatusUpdateEmail update={update} unsubscribeUrl={unsubscribeUrl} brand={brand} />, brand) });
 }
 
-export async function sendSubscriptionConfirmation(to: string, pageName: string, confirmUrl: string, unsubscribeUrl: string, brand: PageEmailBrand, preview = false) {
+export async function sendSubscriptionConfirmation(to: string, pageName: string, confirmUrl: string, unsubscribeUrl: string, brand: PageEmailBrand, preview = false, webhookUrl?: string) {
   await sendNotification({ channel: "email", to, subject: `${preview ? "[Preview] " : ""}Confirm your subscription to ${pageName}`, senderName: brand.name,
     ...(brand.replyTo && { replyTo: brand.replyTo }),
-    ...await renderEmail(<ConfirmSubscriptionEmail pageName={pageName} confirmUrl={confirmUrl} unsubscribeUrl={unsubscribeUrl} brand={brand} />, brand) });
+    ...await renderEmail(<ConfirmSubscriptionEmail pageName={pageName} confirmUrl={confirmUrl} unsubscribeUrl={unsubscribeUrl} brand={brand} webhookUrl={webhookUrl} />, brand) });
 }

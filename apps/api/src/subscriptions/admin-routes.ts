@@ -10,6 +10,7 @@ import { getSubscription, listSubscriptions, removeSubscription, removeSubscript
 import { parseSubscriptionCsv, subscriptionCsv, subscriptionCsvHeader } from "./csv";
 import { requestEmailSubscription } from "./queries";
 import { emailSchema, preferencesSchema } from "./validation";
+import { resendWebhookConfirmation } from "../webhooks/subscriptions";
 
 type Context = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 export const adminSubscriptionRoutes = new Hono<Context>();
@@ -31,7 +32,7 @@ adminSubscriptionRoutes.get("/", async (c) => {
   const search = url.searchParams.get("search");
   url.searchParams.delete("channel"); url.searchParams.delete("search");
   const options = parseHistoryQuery(url.toString(), ["all", "confirmed", "pending"] as const);
-  if (!options || (channel !== null && channel !== "email") || (search !== null && !z.string().trim().min(1).max(254).safeParse(search).success)) {
+  if (!options || (channel !== null && channel !== "email" && channel !== "webhook") || (search !== null && !z.string().trim().min(1).max(254).safeParse(search).success)) {
     return c.json({ error: "Invalid query parameters" }, 400);
   }
   return c.json(await listSubscriptions(c.get("statusPageId"), { ...options, channel: channel ?? undefined, search: search?.trim() }));
@@ -49,7 +50,7 @@ adminSubscriptionRoutes.get("/export", async (c) => {
     async pull(controller) {
       if (done || c.req.raw.signal.aborted) { controller.close(); return; }
       try {
-        const result = await listSubscriptions(pageId, { state: "all", limit: 100, cursor });
+        const result = await listSubscriptions(pageId, { state: "all", channel: "email", limit: 100, cursor });
         const rows = result.data.map((item) => [item.channel, item.destination, item.state, item.scope,
           item.components.map(({ id }) => id).join(";"), item.createdAt.toISOString(), item.confirmedAt?.toISOString() ?? ""]);
         const content = subscriptionCsv(first ? [subscriptionCsvHeader, ...rows] : rows);
@@ -134,7 +135,11 @@ adminSubscriptionRoutes.post("/:subscriptionId/resend-confirmation", async (c) =
   const id = z.uuid().safeParse(c.req.param("subscriptionId"));
   if (!id.success) return c.json({ error: "Invalid subscription ID" }, 400);
   try {
-    const result = await requestEmailSubscription({ type: "resend", pageId: c.get("statusPageId"), subscriptionId: id.data, actorId: c.get("userId") });
+    const entry = await getSubscription(c.get("statusPageId"), id.data);
+    if (!entry) return c.json({ error: "Not found" }, 404);
+    const result = entry.channel === "webhook"
+      ? await resendWebhookConfirmation(c.get("statusPageId"), id.data, c.get("userId"))
+      : await requestEmailSubscription({ type: "resend", pageId: c.get("statusPageId"), subscriptionId: id.data, actorId: c.get("userId") });
     if (result === "not_found") return c.json({ error: "Not found" }, 404);
     if (result === "already_confirmed") return c.json({ error: "Subscription already confirmed" }, 409);
     if (result === "cooldown" || result === "rate_limited") return c.json({ error: result }, 429);

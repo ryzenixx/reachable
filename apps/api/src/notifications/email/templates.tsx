@@ -86,10 +86,11 @@ export function StatusUpdateEmail({ update, unsubscribeUrl, brand }: { update: S
   </ActionEmail>;
 }
 
-export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl, brand }: { pageName: string; confirmUrl: string; unsubscribeUrl: string; brand: PageEmailBrand }) {
+export function ConfirmSubscriptionEmail({ pageName, confirmUrl, unsubscribeUrl, brand, webhookUrl }: { pageName: string; confirmUrl: string; unsubscribeUrl: string; brand: PageEmailBrand; webhookUrl?: string }) {
   return <ActionEmail preview={`Confirm your subscription to ${pageName}`} heading="Confirm your subscription"
     actionLabel="Confirm subscription" actionUrl={confirmUrl} brand={brand}
     footer={<>This confirmation link expires in 24 hours. {brand.footer && <BrandingFooter text={brand.footer} />}<Link href={unsubscribeUrl}>Unsubscribe</Link></>}>
     <Text style={paragraphStyle}>Confirm your subscription to updates from {pageName}.</Text>
+    {webhookUrl && <Text style={paragraphStyle}>Webhook endpoint: {webhookUrl}</Text>}
   </ActionEmail>;
 }
