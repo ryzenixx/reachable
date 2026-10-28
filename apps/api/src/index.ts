@@ -14,12 +14,13 @@ import { resolvePublicSlug } from "./status-pages/queries";
 import { activityRoutes } from "./activity/routes";
 import { withAuthActor } from "./activity/auth-context";
 import { adminSubscriptionRoutes } from "./subscriptions/admin-routes";
+import { authEmailRoutes } from "./notifications/auth-email/routes";
 
 const app = new Hono();
 
 app.get("/", (c) => c.text("Hello Hono!"));
 app.use("/api/auth/organization/invite-member", async (c, next) => {
-  if (c.req.method === "POST" && (!getApplicationUrl() || !process.env.SMTP_URL || !process.env.EMAIL_FROM)) {
+  if (c.req.method === "POST" && !getApplicationUrl()) {
     return c.json({ error: "Invitation email is not configured" }, 503);
   }
   await next();
@@ -46,6 +47,7 @@ app.route("/api/public/status-pages", publicSubscriptionRoutes);
 app.route("/api/subscriptions", subscriptionActionRoutes);
 app.route("/api/organizations/:organizationId/notification-channels", channelRoutes);
 app.route("/api/organizations/:organizationId/activity", activityRoutes);
+app.route("/api/organizations/:organizationId/invitation-deliveries", authEmailRoutes);
 app.route("/api/organizations/:organizationId/status-pages", statusPageRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/components", componentRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/component-groups", componentGroupRoutes);

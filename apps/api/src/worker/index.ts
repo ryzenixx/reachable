@@ -2,12 +2,20 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { processDueMaintenance, processDueMaintenanceReminder } from "../maintenances/scheduler";
 import { processNotificationDelivery } from "../notifications/delivery";
 import { processConfirmationDelivery } from "../notifications/confirmation-delivery";
+import { processAuthEmailDelivery } from "../notifications/auth-email/delivery";
 
 const shutdown = new AbortController();
 process.once("SIGINT", () => shutdown.abort());
 process.once("SIGTERM", () => shutdown.abort());
 
 while (!shutdown.signal.aborted) {
+  try {
+    for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
+      if (!await processAuthEmailDelivery()) break;
+    }
+  } catch (error) {
+    console.error("Failed to process authentication emails:", error);
+  }
   try {
     for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
       if (!await processConfirmationDelivery()) break;
