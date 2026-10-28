@@ -23,9 +23,9 @@ publicSubscriptionRoutes.post("/:slug/subscriptions", async (c) => {
     const result = await requestEmailSubscription({ type: "public", slug: c.req.param("slug"), email: input.data.email });
     if (result === "not_found") return c.json({ error: "Not found" }, 404);
     if (result === "unavailable") return c.json({ error: "Channel unavailable" }, 400);
-    return c.json({ message: "If eligible, a confirmation email will be sent." }, 202);
+    return c.json({ message: "If eligible, a confirmation email will be queued." }, 202);
   } catch (error) {
-    console.error("Could not send subscription confirmation:", error);
+    console.error("Could not queue subscription confirmation:", error);
     return c.json({ error: "Subscription temporarily unavailable" }, 503);
   }
 });

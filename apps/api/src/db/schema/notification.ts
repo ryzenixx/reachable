@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgEnum, pgTable, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { subscription } from "./subscription";
 
 export type StatusNotification = {
@@ -31,4 +31,20 @@ export const notificationDelivery = pgTable("notification_delivery", {
   index("notification_delivery_pending_idx").on(table.nextAttemptAt, table.id).where(sql`${table.status} = 'pending'`),
   index("notification_delivery_subscription_pending_idx").on(table.subscriptionId, table.createdAt, table.id).where(sql`${table.status} = 'pending'`),
   check("notification_delivery_attempts_check", sql`${table.attempts} >= 0`),
+]);
+
+export const confirmationDelivery = pgTable("confirmation_delivery", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  subscriptionId: uuid("subscription_id").notNull().references(() => subscription.id, { onDelete: "cascade" }),
+  status: deliveryStatus("status").default("pending").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  reason: text("reason"),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).default(sql`now() + interval '24 hours'`).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`clock_timestamp()`).notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+}, (table) => [
+  index("confirmation_delivery_pending_idx").on(table.nextAttemptAt, table.id).where(sql`${table.status} = 'pending'`),
+  index("confirmation_delivery_subscription_idx").on(table.subscriptionId, table.createdAt, table.id),
+  check("confirmation_delivery_attempts_check", sql`${table.attempts} >= 0`),
 ]);

@@ -1,10 +1,9 @@
-import { randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { statusPage } from "../db/schema/status-page";
 import { organizationChannel, subscription, subscriptionRateLimit, subscriptionToken } from "../db/schema/subscription";
-import { sendSubscriptionConfirmation } from "../notifications/email/messages";
-import { hashToken, tokenUrl } from "./tokens";
+import { hashToken } from "./tokens";
+import { confirmationDelivery } from "../db/schema/notification";
 import { recordPageActivity, type Actor } from "../activity/record";
 import { updatePreferences } from "./preferences";
 import type { SubscriptionPreferences } from "./validation";
@@ -60,19 +59,15 @@ export async function requestEmailSubscription(input: SubscriptionRequest) {
         count: limit?.inWindow ? limit.count + 1 : 1,
         windowStartedAt: limit?.inWindow ? sql`${subscriptionRateLimit.windowStartedAt}` : sql`now()`,
       } });
+    await tx.update(confirmationDelivery).set({ status: "skipped", reason: "superseded", processedAt: sql`clock_timestamp()` })
+      .where(and(eq(confirmationDelivery.subscriptionId, entry.id), eq(confirmationDelivery.status, "pending")));
     await tx.delete(subscriptionToken).where(and(eq(subscriptionToken.subscriptionId, entry.id), eq(subscriptionToken.purpose, "confirm")));
-    const confirm = randomBytes(32).toString("base64url");
-    const unsubscribe = randomBytes(32).toString("base64url");
-    await tx.insert(subscriptionToken).values([
-      { hash: hashToken(confirm), subscriptionId: entry.id, purpose: "confirm", expiresAt: sql`now() + interval '24 hours'` },
-      { hash: hashToken(unsubscribe), subscriptionId: entry.id, purpose: "unsubscribe" },
-    ]);
-    await sendSubscriptionConfirmation(email, page.name, tokenUrl("confirm", confirm), tokenUrl("unsubscribe", unsubscribe));
+    await tx.insert(confirmationDelivery).values({ subscriptionId: entry.id });
     const actor: Actor = input.type === "public" ? { type: "subscriber" } : { type: "member", id: input.actorId };
     if (!existing || input.type !== "public") await recordPageActivity(tx, page.id, { actor,
       action: existing ? "subscription.confirmation_resent" : "subscription.requested",
       resourceType: "subscription", resourceId: entry.id, details: { channel: "email" } });
-    return input.type === "public" ? "accepted" as const : "sent" as const;
+    return input.type === "public" ? "accepted" as const : "queued" as const;
   });
 }
 
@@ -100,6 +95,8 @@ export async function useSubscriptionToken(token: string, purpose: "confirm" | "
       .where(and(eq(statusPage.id, locked.statusPageId), eq(statusPage.published, true)));
     if (!enabled) return false;
     await tx.update(subscription).set({ confirmedAt: sql`coalesce(${subscription.confirmedAt}, now())` }).where(eq(subscription.id, locked.id));
+    await tx.update(confirmationDelivery).set({ status: "skipped", reason: "confirmed", processedAt: sql`clock_timestamp()` })
+      .where(and(eq(confirmationDelivery.subscriptionId, locked.id), eq(confirmationDelivery.status, "pending")));
     await tx.delete(subscriptionToken).where(and(eq(subscriptionToken.subscriptionId, locked.id), eq(subscriptionToken.purpose, "confirm")));
     if (!locked.confirmedAt) await recordPageActivity(tx, locked.statusPageId, { actor: { type: "subscriber" }, action: "subscription.confirmed", resourceType: "subscription", resourceId: locked.id, details: { channel: locked.channel } });
     return true;

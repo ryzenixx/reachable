@@ -79,7 +79,7 @@ adminSubscriptionRoutes.post("/import", bodyLimit({ maxSize: 65536 }), async (c)
       const result = await requestEmailSubscription({ type: "admin", pageId: c.get("statusPageId"), actorId: c.get("userId"), email: row.email, preferences: row.preferences });
       results.push({ row: row.row, result });
     } catch {
-      results.push({ row: row.row, result: "delivery_failed" });
+      results.push({ row: row.row, result: "queue_failed" });
     }
   }
   return c.json({ results });
@@ -105,9 +105,9 @@ adminSubscriptionRoutes.post("/", bodyLimit({ maxSize: 16384 }), async (c) => {
     if (result === "invalid_components") return c.json({ error: "Invalid components" }, 400);
     if (result === "already_confirmed") return c.json({ error: "Subscription already confirmed" }, 409);
     if (result === "cooldown" || result === "rate_limited") return c.json({ error: result }, 429);
-    if (result !== "sent") return c.json({ error: "Page or channel unavailable" }, 409);
+    if (result !== "queued") return c.json({ error: "Page or channel unavailable" }, 409);
     return c.json({ result }, 202);
-  } catch { return c.json({ error: "Could not send confirmation" }, 503); }
+  } catch { return c.json({ error: "Could not queue confirmation" }, 503); }
 });
 
 adminSubscriptionRoutes.get("/:subscriptionId", async (c) => {
@@ -138,9 +138,9 @@ adminSubscriptionRoutes.post("/:subscriptionId/resend-confirmation", async (c) =
     if (result === "not_found") return c.json({ error: "Not found" }, 404);
     if (result === "already_confirmed") return c.json({ error: "Subscription already confirmed" }, 409);
     if (result === "cooldown" || result === "rate_limited") return c.json({ error: result }, 429);
-    if (result !== "sent") return c.json({ error: "Page or channel unavailable" }, 409);
+    if (result !== "queued") return c.json({ error: "Page or channel unavailable" }, 409);
     return c.json({ result }, 202);
-  } catch { return c.json({ error: "Could not send confirmation" }, 503); }
+  } catch { return c.json({ error: "Could not queue confirmation" }, 503); }
 });
 
 adminSubscriptionRoutes.delete("/:subscriptionId", async (c) => {
