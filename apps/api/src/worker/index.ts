@@ -4,12 +4,22 @@ import { processNotificationDelivery } from "../notifications/delivery";
 import { processConfirmationDelivery } from "../notifications/confirmation-delivery";
 import { processAuthEmailDelivery } from "../notifications/auth-email/delivery";
 import { processWebhookFailureAlert } from "../notifications/webhook-alert";
+import { pruneRequestRateLimits } from "../http/rate-limit";
 
 const shutdown = new AbortController();
+let nextRateLimitCleanup = 0;
 process.once("SIGINT", () => shutdown.abort());
 process.once("SIGTERM", () => shutdown.abort());
 
 while (!shutdown.signal.aborted) {
+  if (Date.now() >= nextRateLimitCleanup) {
+    nextRateLimitCleanup = Date.now() + 60_000;
+    try {
+      await pruneRequestRateLimits();
+    } catch (error) {
+      console.error("Failed to clean up request rate limits:", error);
+    }
+  }
   try {
     for (let count = 0; count < 100 && !shutdown.signal.aborted; count++) {
       if (!await processAuthEmailDelivery()) break;

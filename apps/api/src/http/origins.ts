@@ -11,10 +11,10 @@ function apiOrigin() {
 }
 
 const publicCors = cors({ origin: "*", allowMethods: ["GET", "HEAD", "POST", "OPTIONS"],
-  allowHeaders: ["Content-Type"], maxAge: 600 });
+  allowHeaders: ["Content-Type"], exposeHeaders: ["Retry-After"], maxAge: 600 });
 const applicationCors = cors({ origin: (origin) => origin === getApplicationUrl()?.origin ? origin : null,
   allowMethods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"], exposeHeaders: ["Content-Disposition"], credentials: true, maxAge: 600 });
+  allowHeaders: ["Content-Type", "Authorization"], exposeHeaders: ["Content-Disposition", "Retry-After", "X-Retry-After"], credentials: true, maxAge: 600 });
 
 export const apiCors = createMiddleware(async (c, next) => {
   const path = c.req.path;

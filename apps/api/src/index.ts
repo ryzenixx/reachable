@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { getPath } from "hono/utils/url";
 import { auth } from "./auth";
 import { componentRoutes } from "./components/routes";
 import { componentGroupRoutes } from "./component-groups/routes";
@@ -22,12 +24,18 @@ import { integrationRoutes } from "./api-keys/integration-routes";
 import { apiCors, protectOrganizationOrigin } from "./http/origins";
 import { healthRoutes } from "./health/routes";
 import { withClientIp } from "./http/client-ip";
+import { protectPublicRequests, publicRateLimitScope } from "./http/rate-limit";
 
 const app = new Hono();
 
 app.get("/", (c) => c.text("Hello Hono!"));
 app.route("/health", healthRoutes);
 app.use("/api/*", apiCors);
+app.use("/api/*", (c, next) => {
+  const imageUpload = c.req.method === "PUT" && /^\/api\/organizations\/[^/]+\/status-pages\/[^/]+\/branding\/assets\/[^/]+\/?$/.test(c.req.path);
+  return bodyLimit({ maxSize: imageUpload ? 2 * 1024 * 1024 : 256 * 1024 })(c, next);
+});
+app.use("/api/*", protectPublicRequests);
 app.use("/api/organizations/*", protectOrganizationOrigin);
 app.use("/api/auth/organization/invite-member", async (c, next) => {
   if (c.req.method === "POST" && !getApplicationUrl()) {
@@ -73,7 +81,9 @@ app.route("/api/organizations/:organizationId/status-pages/:statusPageId/templat
 
 export default {
   fetch(request: Request, server: Bun.Server<unknown>) {
-    if (!new URL(request.url).pathname.startsWith("/api/auth/")) return app.fetch(request);
+    const path = getPath(request);
+    const needsClientIp = path.startsWith("/api/auth/") || publicRateLimitScope(path, request.method);
+    if (!needsClientIp || request.method === "OPTIONS") return app.fetch(request);
     const safeRequest = withClientIp(request, server.requestIP(request)?.address);
     if (!safeRequest) return new Response("Invalid client IP", { status: 400 });
     return app.fetch(safeRequest);
