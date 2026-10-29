@@ -9,6 +9,7 @@ import { createComponent, deleteComponent, listComponents, updateComponent } fro
 import { componentIdSchema, createComponentSchema, updateComponentSchema } from "./validation";
 import { getComponentHistory, listComponentStateChanges, parseHistoryRange } from "./history";
 import { parseHistoryQuery } from "../history/pagination";
+import { createComponentDoc, deleteComponentDoc, listComponentsDoc, updateComponentDoc } from "./openapi";
 
 type ComponentContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 
@@ -25,7 +26,7 @@ componentRoutes.use("*", async (c, next) => {
   await next();
 });
 
-componentRoutes.get("/", async (c) => c.json(await listComponents(c.get("statusPageId"))));
+componentRoutes.get("/", listComponentsDoc, async (c) => c.json(await listComponents(c.get("statusPageId"))));
 
 componentRoutes.get("/:componentId/history", async (c) => {
   const id = componentIdSchema.safeParse(c.req.param("componentId"));
@@ -52,7 +53,7 @@ componentRoutes.get("/:componentId/history/changes", async (c) => {
   return c.json({ from: range.from, to: range.to, ...history });
 });
 
-componentRoutes.post("/", requireOrganizationAdmin, async (c) => {
+componentRoutes.post("/", createComponentDoc, requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
     return c.json({ error: "Expected application/json" }, 415);
   }
@@ -64,7 +65,7 @@ componentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   return c.json(created, 201);
 });
 
-componentRoutes.patch("/:componentId", requireOrganizationAdmin, async (c) => {
+componentRoutes.patch("/:componentId", updateComponentDoc, requireOrganizationAdmin, async (c) => {
   const componentId = componentIdSchema.safeParse(c.req.param("componentId"));
   if (!componentId.success) return c.json({ error: "Invalid component ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
@@ -79,7 +80,7 @@ componentRoutes.patch("/:componentId", requireOrganizationAdmin, async (c) => {
   return c.json(updated);
 });
 
-componentRoutes.delete("/:componentId", requireOrganizationAdmin, async (c) => {
+componentRoutes.delete("/:componentId", deleteComponentDoc, requireOrganizationAdmin, async (c) => {
   const componentId = componentIdSchema.safeParse(c.req.param("componentId"));
   if (!componentId.success) return c.json({ error: "Invalid component ID" }, 400);
   const result = await deleteComponent(c.get("statusPageId"), componentId.data, c.get("userId"));

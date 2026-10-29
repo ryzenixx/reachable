@@ -7,24 +7,25 @@ import {
 import { createStatusPage, getStatusPage, isStatusPageSlugAvailable, listStatusPages, setStatusPagePublication, updateStatusPage } from "./queries";
 import { setFeedEnabled } from "../feeds/queries";
 import { createStatusPageSchema, feedSettingsSchema, publicationSchema, statusPageIdSchema, statusPageSlugSchema, updateStatusPageSchema } from "./validation";
+import { createPageDoc, feedDoc, getPageDoc, listPagesDoc, publicationDoc, slugAvailabilityDoc, updatePageDoc } from "./openapi";
 
 export const statusPageRoutes = new Hono<OrganizationContext>();
 
 statusPageRoutes.use("*", requireOrganization);
 
-statusPageRoutes.get("/", async (c) => {
+statusPageRoutes.get("/", listPagesDoc, async (c) => {
   const pages = await listStatusPages(c.get("organizationId"));
   return c.json(pages);
 });
 
-statusPageRoutes.get("/slug-availability", async (c) => {
+statusPageRoutes.get("/slug-availability", slugAvailabilityDoc, async (c) => {
   const slug = statusPageSlugSchema.safeParse(c.req.query("slug"));
   if (!slug.success) return c.json({ error: "Invalid slug" }, 400);
   c.header("Cache-Control", "no-store");
   return c.json({ available: await isStatusPageSlugAvailable(slug.data) });
 });
 
-statusPageRoutes.get("/:statusPageId", async (c) => {
+statusPageRoutes.get("/:statusPageId", getPageDoc, async (c) => {
   const id = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
   if (!id.success) return c.json({ error: "Invalid page ID" }, 400);
   const page = await getStatusPage(c.get("organizationId"), id.data);
@@ -32,7 +33,7 @@ statusPageRoutes.get("/:statusPageId", async (c) => {
   return c.json(page);
 });
 
-statusPageRoutes.patch("/:statusPageId", requireOrganizationAdmin, async (c) => {
+statusPageRoutes.patch("/:statusPageId", updatePageDoc, requireOrganizationAdmin, async (c) => {
   const id = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
   if (!id.success) return c.json({ error: "Invalid page ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -44,7 +45,7 @@ statusPageRoutes.patch("/:statusPageId", requireOrganizationAdmin, async (c) => 
   return c.json(page);
 });
 
-statusPageRoutes.post("/", requireOrganizationAdmin, async (c) => {
+statusPageRoutes.post("/", createPageDoc, requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
     return c.json({ error: "Expected application/json" }, 415);
   }
@@ -64,7 +65,7 @@ statusPageRoutes.post("/", requireOrganizationAdmin, async (c) => {
   return c.json(page, 201);
 });
 
-statusPageRoutes.patch("/:statusPageId/publication", requireOrganizationAdmin, async (c) => {
+statusPageRoutes.patch("/:statusPageId/publication", publicationDoc, requireOrganizationAdmin, async (c) => {
   const pageId = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
@@ -78,7 +79,7 @@ statusPageRoutes.patch("/:statusPageId/publication", requireOrganizationAdmin, a
   return c.json(page);
 });
 
-statusPageRoutes.patch("/:statusPageId/feed", requireOrganizationAdmin, async (c) => {
+statusPageRoutes.patch("/:statusPageId/feed", feedDoc, requireOrganizationAdmin, async (c) => {
   const pageId = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
