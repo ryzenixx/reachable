@@ -10,6 +10,7 @@ import { componentIdSchema, createComponentSchema, updateComponentSchema } from 
 import { getComponentHistory, listComponentStateChanges, parseHistoryRange } from "./history";
 import { parseHistoryQuery } from "../history/pagination";
 import { createComponentDoc, deleteComponentDoc, listComponentsDoc, updateComponentDoc } from "./openapi";
+import { historyDoc } from "./history-openapi";
 
 type ComponentContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 
@@ -28,7 +29,7 @@ componentRoutes.use("*", async (c, next) => {
 
 componentRoutes.get("/", listComponentsDoc, async (c) => c.json(await listComponents(c.get("statusPageId"))));
 
-componentRoutes.get("/:componentId/history", async (c) => {
+componentRoutes.get("/:componentId/history", historyDoc(false, false), async (c) => {
   const id = componentIdSchema.safeParse(c.req.param("componentId"));
   if (!id.success) return c.json({ error: "Invalid component ID" }, 400);
   const url = new URL(c.req.url);
@@ -40,7 +41,7 @@ componentRoutes.get("/:componentId/history", async (c) => {
   return c.json(history);
 });
 
-componentRoutes.get("/:componentId/history/changes", async (c) => {
+componentRoutes.get("/:componentId/history/changes", historyDoc(false, true), async (c) => {
   const id = componentIdSchema.safeParse(c.req.param("componentId"));
   if (!id.success) return c.json({ error: "Invalid component ID" }, 400);
   const url = new URL(c.req.url);

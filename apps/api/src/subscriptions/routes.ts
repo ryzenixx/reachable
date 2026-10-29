@@ -1,29 +1,25 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { z } from "zod";
 import { getPublicChannels, requestEmailSubscription, useSubscriptionToken } from "./queries";
 import { getSubscriptionPreferences, setSubscriptionPreferences } from "./preferences";
-import { emailSchema, preferencesSchema } from "./validation";
+import { preferencesSchema, publicSubscriptionSchema } from "./validation";
+import { getChannelsDoc, getPreferencesDoc, publicSubscribeDoc, rotateSecretDoc, subscriptionActionDoc, updatePreferencesDoc } from "./openapi";
 import { requestWebhookSubscription, rotateWebhookSecret } from "../webhooks/subscriptions";
 import { parseWebhookUrl } from "../webhooks/transport";
 
 export const publicSubscriptionRoutes = new Hono();
 
-publicSubscriptionRoutes.get("/:slug/subscription-channels", async (c) => {
+publicSubscriptionRoutes.get("/:slug/subscription-channels", getChannelsDoc, async (c) => {
   c.header("Cache-Control", "no-store");
   const channels = await getPublicChannels(c.req.param("slug"));
   if (!channels) return c.json({ error: "Not found" }, 404);
   return c.json({ channels });
 });
 
-publicSubscriptionRoutes.post("/:slug/subscriptions", bodyLimit({ maxSize: 16384 }), async (c) => {
+publicSubscriptionRoutes.post("/:slug/subscriptions", publicSubscribeDoc, bodyLimit({ maxSize: 16384 }), async (c) => {
   c.header("Cache-Control", "no-store");
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
-  const input = z.discriminatedUnion("channel", [
-    z.strictObject({ channel: z.literal("email"), email: emailSchema, preferences: preferencesSchema.optional() }),
-    z.strictObject({ channel: z.literal("webhook"), email: emailSchema, url: z.string().max(2048), preferences: preferencesSchema.optional() }),
-  ])
-    .safeParse(await c.req.json().catch(() => null));
+  const input = publicSubscriptionSchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) return c.json({ error: "Invalid input" }, 400);
   try {
     const url = input.data.channel === "webhook" ? parseWebhookUrl(input.data.url) : undefined;
@@ -51,7 +47,7 @@ subscriptionActionRoutes.use("*", async (c, next) => {
 });
 
 
-subscriptionActionRoutes.get("/manage/:token", async (c) => {
+subscriptionActionRoutes.get("/manage/:token", getPreferencesDoc, async (c) => {
   const token = c.req.param("token");
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return c.json({ error: "Invalid link" }, 400);
   const preferences = await getSubscriptionPreferences(token);
@@ -59,7 +55,7 @@ subscriptionActionRoutes.get("/manage/:token", async (c) => {
   return c.json(preferences);
 });
 
-subscriptionActionRoutes.put("/manage/:token", async (c) => {
+subscriptionActionRoutes.put("/manage/:token", updatePreferencesDoc, async (c) => {
   const token = c.req.param("token");
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return c.json({ error: "Invalid link" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -71,7 +67,7 @@ subscriptionActionRoutes.put("/manage/:token", async (c) => {
   return c.json({ success: true });
 });
 
-subscriptionActionRoutes.post("/manage/:token/webhook-secret", async (c) => {
+subscriptionActionRoutes.post("/manage/:token/webhook-secret", rotateSecretDoc, async (c) => {
   const token = c.req.param("token");
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return c.json({ error: "Invalid link" }, 400);
   const secret = await rotateWebhookSecret(token);
@@ -80,12 +76,12 @@ subscriptionActionRoutes.post("/manage/:token/webhook-secret", async (c) => {
 });
 
 for (const purpose of ["confirm", "unsubscribe"] as const) {
-  subscriptionActionRoutes.get(`/${purpose}/:token`, (c) => {
+  subscriptionActionRoutes.get(`/${purpose}/:token`, subscriptionActionDoc(purpose, false), (c) => {
     if (!/^[A-Za-z0-9_-]{43}$/.test(c.req.param("token"))) return c.text("Invalid link", 400);
     const label = purpose === "confirm" ? "Confirm subscription" : "Unsubscribe";
     return c.html(`<!doctype html><html lang="en"><meta charset="utf-8"><title>${label}</title><body><main><h1>${label}</h1><form method="post"><button type="submit">${label}</button></form></main></body></html>`);
   });
-  subscriptionActionRoutes.post(`/${purpose}/:token`, async (c) => {
+  subscriptionActionRoutes.post(`/${purpose}/:token`, subscriptionActionDoc(purpose, true), async (c) => {
     const token = c.req.param("token");
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return c.text("This link is invalid, expired, or unavailable.", 400);
     const result = await useSubscriptionToken(token, purpose);

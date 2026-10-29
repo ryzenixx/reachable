@@ -11,6 +11,7 @@ import { parseSubscriptionCsv, subscriptionCsv, subscriptionCsvHeader } from "./
 import { requestEmailSubscription } from "./queries";
 import { emailSchema, preferencesSchema } from "./validation";
 import { resendWebhookConfirmation } from "../webhooks/subscriptions";
+import { bulkDeleteSubscribersDoc, createSubscriberDoc, deleteSubscriberDoc, exportSubscribersDoc, getSubscriberDoc, importSubscribersDoc, listSubscribersDoc, resendSubscriberConfirmationDoc, setSubscriberPreferencesDoc, subscriberSummaryDoc } from "./admin-openapi";
 
 type Context = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 export const adminSubscriptionRoutes = new Hono<Context>();
@@ -25,7 +26,7 @@ adminSubscriptionRoutes.use("*", async (c, next) => {
   await next();
 });
 
-adminSubscriptionRoutes.get("/", async (c) => {
+adminSubscriptionRoutes.get("/", listSubscribersDoc, async (c) => {
   const url = new URL(c.req.url);
   if (["channel", "search"].some((key) => url.searchParams.getAll(key).length > 1)) return c.json({ error: "Invalid query parameters" }, 400);
   const channel = url.searchParams.get("channel");
@@ -38,7 +39,7 @@ adminSubscriptionRoutes.get("/", async (c) => {
   return c.json(await listSubscriptions(c.get("statusPageId"), { ...options, channel: channel ?? undefined, search: search?.trim() }));
 });
 
-adminSubscriptionRoutes.get("/export", async (c) => {
+adminSubscriptionRoutes.get("/export", exportSubscribersDoc, async (c) => {
   if ([...new URL(c.req.url).searchParams].length) return c.json({ error: "Invalid query parameters" }, 400);
   const pageId = c.get("statusPageId");
   await db.transaction((tx) => recordPageActivity(tx, pageId, { actor: { type: "member", id: c.get("userId") },
@@ -64,9 +65,9 @@ adminSubscriptionRoutes.get("/export", async (c) => {
   return new Response(stream, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="subscribers.csv"', "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 });
 
-adminSubscriptionRoutes.get("/summary", async (c) => c.json({ channels: await summarizeSubscriptions(c.get("statusPageId")) }));
+adminSubscriptionRoutes.get("/summary", subscriberSummaryDoc, async (c) => c.json({ channels: await summarizeSubscriptions(c.get("statusPageId")) }));
 
-adminSubscriptionRoutes.post("/import", bodyLimit({ maxSize: 65536 }), async (c) => {
+adminSubscriptionRoutes.post("/import", importSubscribersDoc, bodyLimit({ maxSize: 65536 }), async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("text/csv")) return c.json({ error: "Expected text/csv" }, 415);
   const rows = parseSubscriptionCsv(await c.req.text());
   if (!rows) return c.json({ error: "Invalid CSV or more than 100 rows" }, 400);
@@ -86,7 +87,7 @@ adminSubscriptionRoutes.post("/import", bodyLimit({ maxSize: 65536 }), async (c)
   return c.json({ results });
 });
 
-adminSubscriptionRoutes.post("/bulk-delete", bodyLimit({ maxSize: 16384 }), async (c) => {
+adminSubscriptionRoutes.post("/bulk-delete", bulkDeleteSubscribersDoc, bodyLimit({ maxSize: 16384 }), async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = z.strictObject({ ids: z.array(z.uuid()).min(1).max(100)
     .refine((ids) => new Set(ids).size === ids.length) }).safeParse(await c.req.json().catch(() => null));
@@ -96,7 +97,7 @@ adminSubscriptionRoutes.post("/bulk-delete", bodyLimit({ maxSize: 16384 }), asyn
   return c.json({ removed, notFound: parsed.data.ids.filter((id) => !removedIds.has(id)) });
 });
 
-adminSubscriptionRoutes.post("/", bodyLimit({ maxSize: 16384 }), async (c) => {
+adminSubscriptionRoutes.post("/", createSubscriberDoc, bodyLimit({ maxSize: 16384 }), async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = z.strictObject({ channel: z.literal("email"), email: emailSchema, preferences: preferencesSchema.optional() })
     .safeParse(await c.req.json().catch(() => null));
@@ -111,7 +112,7 @@ adminSubscriptionRoutes.post("/", bodyLimit({ maxSize: 16384 }), async (c) => {
   } catch { return c.json({ error: "Could not queue confirmation" }, 503); }
 });
 
-adminSubscriptionRoutes.get("/:subscriptionId", async (c) => {
+adminSubscriptionRoutes.get("/:subscriptionId", getSubscriberDoc, async (c) => {
   const id = z.uuid().safeParse(c.req.param("subscriptionId"));
   if (!id.success) return c.json({ error: "Invalid subscription ID" }, 400);
   const entry = await getSubscription(c.get("statusPageId"), id.data);
@@ -119,7 +120,7 @@ adminSubscriptionRoutes.get("/:subscriptionId", async (c) => {
   return c.json(entry);
 });
 
-adminSubscriptionRoutes.put("/:subscriptionId/preferences", bodyLimit({ maxSize: 16384 }), async (c) => {
+adminSubscriptionRoutes.put("/:subscriptionId/preferences", setSubscriberPreferencesDoc, bodyLimit({ maxSize: 16384 }), async (c) => {
   const id = z.uuid().safeParse(c.req.param("subscriptionId"));
   if (!id.success) return c.json({ error: "Invalid subscription ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -131,7 +132,7 @@ adminSubscriptionRoutes.put("/:subscriptionId/preferences", bodyLimit({ maxSize:
   return c.json({ success: true });
 });
 
-adminSubscriptionRoutes.post("/:subscriptionId/resend-confirmation", async (c) => {
+adminSubscriptionRoutes.post("/:subscriptionId/resend-confirmation", resendSubscriberConfirmationDoc, async (c) => {
   const id = z.uuid().safeParse(c.req.param("subscriptionId"));
   if (!id.success) return c.json({ error: "Invalid subscription ID" }, 400);
   try {
@@ -148,7 +149,7 @@ adminSubscriptionRoutes.post("/:subscriptionId/resend-confirmation", async (c) =
   } catch { return c.json({ error: "Could not queue confirmation" }, 503); }
 });
 
-adminSubscriptionRoutes.delete("/:subscriptionId", async (c) => {
+adminSubscriptionRoutes.delete("/:subscriptionId", deleteSubscriberDoc, async (c) => {
   const id = z.uuid().safeParse(c.req.param("subscriptionId"));
   if (!id.success) return c.json({ error: "Invalid subscription ID" }, 400);
   if (!await removeSubscription(c.get("statusPageId"), id.data, c.get("userId"))) return c.json({ error: "Not found" }, 404);

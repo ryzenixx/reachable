@@ -14,6 +14,7 @@ import { createMaintenanceSchema, createMaintenanceUpdateSchema, maintenanceHist
 import { editMaintenanceMessage, editMaintenanceTitle } from "../maintenances/edits";
 import { parseHistoryQuery } from "../history/pagination";
 import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
+import { integrationComponentsDoc, integrationComponentStatusDoc, integrationCreateDoc, integrationEditDoc, integrationListDoc, integrationUpdateDoc } from "./integration-openapi";
 
 const metadataSchema = z.strictObject({ pageId: z.uuid() });
 type Context = { Variables: { pageId: string; keyId: string } };
@@ -44,8 +45,8 @@ function requireKey(resource: Resource, action: "read" | "write") {
 export const integrationRoutes = new Hono<Context>();
 integrationRoutes.use("*", bodyLimit({ maxSize: 32768 }));
 
-integrationRoutes.get("/:pageId/components", requireKey("components", "read"), async (c) => c.json(await listComponents(c.get("pageId"))));
-integrationRoutes.patch("/:pageId/components/:componentId/status", requireKey("components", "write"), async (c) => {
+integrationRoutes.get("/:pageId/components", integrationComponentsDoc, requireKey("components", "read"), async (c) => c.json(await listComponents(c.get("pageId"))));
+integrationRoutes.patch("/:pageId/components/:componentId/status", integrationComponentStatusDoc, requireKey("components", "write"), async (c) => {
   const id = z.uuid().safeParse(c.req.param("componentId"));
   if (!id.success) return c.json({ error: "Invalid component ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -56,12 +57,12 @@ integrationRoutes.patch("/:pageId/components/:componentId/status", requireKey("c
   return c.json(updated);
 });
 
-integrationRoutes.get("/:pageId/incidents", requireKey("incidents", "read"), async (c) => {
+integrationRoutes.get("/:pageId/incidents", integrationListDoc("incidents"), requireKey("incidents", "read"), async (c) => {
   const options = parseHistoryQuery(c.req.url, incidentHistoryStates);
   if (!options) return c.json({ error: "Invalid query parameters" }, 400);
   return c.json(await listIncidents(c.get("pageId"), options));
 });
-integrationRoutes.post("/:pageId/incidents", requireKey("incidents", "write"), async (c) => {
+integrationRoutes.post("/:pageId/incidents", integrationCreateDoc("incidents"), requireKey("incidents", "write"), async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const input = createIncidentSchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) return c.json({ error: "Invalid input" }, 400);
@@ -69,7 +70,7 @@ integrationRoutes.post("/:pageId/incidents", requireKey("incidents", "write"), a
   if (!created) return c.json({ error: "Invalid components" }, 400);
   return c.json(created, 201);
 });
-integrationRoutes.post("/:pageId/incidents/historical", requireKey("incidents", "write"), async (c) => {
+integrationRoutes.post("/:pageId/incidents/historical", integrationCreateDoc("incidents", true), requireKey("incidents", "write"), async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const input = createHistoricalIncidentSchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) return c.json({ error: "Invalid input" }, 400);
@@ -77,7 +78,7 @@ integrationRoutes.post("/:pageId/incidents/historical", requireKey("incidents", 
   if (!created) return c.json({ error: "Invalid components" }, 400);
   return c.json(created, 201);
 });
-integrationRoutes.post("/:pageId/incidents/:incidentId/updates", requireKey("incidents", "write"), async (c) => {
+integrationRoutes.post("/:pageId/incidents/:incidentId/updates", integrationUpdateDoc("incidents"), requireKey("incidents", "write"), async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));
   if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -90,12 +91,12 @@ integrationRoutes.post("/:pageId/incidents/:incidentId/updates", requireKey("inc
   return c.json(result, 201);
 });
 
-integrationRoutes.get("/:pageId/maintenances", requireKey("maintenances", "read"), async (c) => {
+integrationRoutes.get("/:pageId/maintenances", integrationListDoc("maintenances"), requireKey("maintenances", "read"), async (c) => {
   const options = parseHistoryQuery(c.req.url, maintenanceHistoryStates);
   if (!options) return c.json({ error: "Invalid query parameters" }, 400);
   return c.json(await listMaintenances(c.get("pageId"), options));
 });
-integrationRoutes.post("/:pageId/maintenances", requireKey("maintenances", "write"), async (c) => {
+integrationRoutes.post("/:pageId/maintenances", integrationCreateDoc("maintenances"), requireKey("maintenances", "write"), async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const input = createMaintenanceSchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) return c.json({ error: "Invalid input" }, 400);
@@ -103,7 +104,7 @@ integrationRoutes.post("/:pageId/maintenances", requireKey("maintenances", "writ
   if (!created) return c.json({ error: "Invalid components" }, 400);
   return c.json(created, 201);
 });
-integrationRoutes.post("/:pageId/maintenances/:maintenanceId/updates", requireKey("maintenances", "write"), async (c) => {
+integrationRoutes.post("/:pageId/maintenances/:maintenanceId/updates", integrationUpdateDoc("maintenances"), requireKey("maintenances", "write"), async (c) => {
   const id = z.uuid().safeParse(c.req.param("maintenanceId"));
   if (!id.success) return c.json({ error: "Invalid maintenance ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -120,7 +121,7 @@ integrationRoutes.post("/:pageId/maintenances/:maintenanceId/updates", requireKe
 });
 
 for (const resource of ["incidents", "maintenances"] as const) {
-  integrationRoutes.patch(`/:pageId/${resource}/:id`, requireKey(resource, "write"), async (c) => {
+  integrationRoutes.patch(`/:pageId/${resource}/:id`, integrationEditDoc(resource, false), requireKey(resource, "write"), async (c) => {
     const id = z.uuid().safeParse(c.req.param("id"));
     if (!id.success) return c.json({ error: "Invalid ID" }, 400);
     if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -133,7 +134,7 @@ for (const resource of ["incidents", "maintenances"] as const) {
     if (!result) return c.json({ error: "Not found" }, 404);
     return c.json(result);
   });
-  integrationRoutes.patch(`/:pageId/${resource}/:id/updates/:updateId`, requireKey(resource, "write"), async (c) => {
+  integrationRoutes.patch(`/:pageId/${resource}/:id/updates/:updateId`, integrationEditDoc(resource, true), requireKey(resource, "write"), async (c) => {
     const id = z.uuid().safeParse(c.req.param("id"));
     const updateId = z.uuid().safeParse(c.req.param("updateId"));
     if (!id.success || !updateId.success) return c.json({ error: "Invalid ID" }, 400);

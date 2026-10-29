@@ -6,11 +6,12 @@ import { activity } from "../db/schema/activity";
 import { encodeCursor, parseHistoryQuery } from "../history/pagination";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { pageBelongsToOrganization } from "../status-pages/queries";
+import { listActivityDoc } from "./openapi";
 
 export const activityRoutes = new Hono<OrganizationContext>();
 activityRoutes.use("*", requireOrganization);
 activityRoutes.use("*", requireOrganizationAdmin);
-activityRoutes.get("/", async (c) => {
+activityRoutes.get("/", listActivityDoc, async (c) => {
   c.header("Cache-Control", "no-store");
   const url = new URL(c.req.url);
   if (url.searchParams.getAll("statusPageId").length > 1) return c.json({ error: "Invalid query parameters" }, 400);

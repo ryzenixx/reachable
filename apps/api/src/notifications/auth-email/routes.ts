@@ -6,11 +6,12 @@ import { authEmailDelivery } from "../../db/schema/auth-email-delivery";
 import { deliveryStatus } from "../../db/schema/notification";
 import { encodeCursor, parseHistoryQuery } from "../../history/pagination";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../../organizations/access";
+import { listInvitationDeliveriesDoc } from "../../activity/openapi";
 
 export const authEmailRoutes = new Hono<OrganizationContext>();
 authEmailRoutes.use("*", requireOrganization);
 authEmailRoutes.use("*", requireOrganizationAdmin);
-authEmailRoutes.get("/", async (c) => {
+authEmailRoutes.get("/", listInvitationDeliveriesDoc, async (c) => {
   c.header("Cache-Control", "no-store");
   const url = new URL(c.req.url);
   if (url.searchParams.getAll("status").length > 1) return c.json({ error: "Invalid query parameters" }, 400);

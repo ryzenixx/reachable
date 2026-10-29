@@ -8,10 +8,11 @@ import { requireOrganization, requireOrganizationAdmin, type OrganizationContext
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { encodeCursor, parseHistoryQuery } from "../history/pagination";
 import { retryNotification, retryWebhookFailureAlert } from "./retry";
+import { listConfirmationsDoc, listLegacyDeliveriesDoc, listNotificationDeliveriesDoc, listWebhookAlertsDoc, retryDeliveryDoc } from "./openapi";
 
 export const notificationRoutes = new Hono<OrganizationContext>();
 notificationRoutes.use("*", requireOrganization);
-notificationRoutes.get("/confirmations", requireOrganizationAdmin, async (c) => {
+notificationRoutes.get("/confirmations", listConfirmationsDoc, requireOrganizationAdmin, async (c) => {
   c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
@@ -38,7 +39,7 @@ notificationRoutes.get("/confirmations", requireOrganizationAdmin, async (c) => 
   return c.json({ data: selected.map(({ cursorTimestamp: _, ...item }) => item),
     nextCursor: rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null });
 });
-notificationRoutes.get("/", requireOrganizationAdmin, async (c) => {
+notificationRoutes.get("/", listLegacyDeliveriesDoc, requireOrganizationAdmin, async (c) => {
   c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
@@ -58,7 +59,7 @@ notificationRoutes.get("/", requireOrganizationAdmin, async (c) => {
   return c.json(deliveries);
 });
 
-notificationRoutes.get("/deliveries", requireOrganizationAdmin, async (c) => {
+notificationRoutes.get("/deliveries", listNotificationDeliveriesDoc, requireOrganizationAdmin, async (c) => {
   c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
@@ -86,7 +87,7 @@ notificationRoutes.get("/deliveries", requireOrganizationAdmin, async (c) => {
     nextCursor: rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null });
 });
 
-notificationRoutes.get("/webhook-alerts", requireOrganizationAdmin, async (c) => {
+notificationRoutes.get("/webhook-alerts", listWebhookAlertsDoc, requireOrganizationAdmin, async (c) => {
   c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
@@ -115,7 +116,7 @@ notificationRoutes.get("/webhook-alerts", requireOrganizationAdmin, async (c) =>
     nextCursor: rows.length > options.limit && last ? encodeCursor(last.cursorTimestamp, last.id) : null });
 });
 
-notificationRoutes.post("/deliveries/:deliveryId/retry", requireOrganizationAdmin, async (c) => {
+notificationRoutes.post("/deliveries/:deliveryId/retry", retryDeliveryDoc(false), requireOrganizationAdmin, async (c) => {
   c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
   const deliveryId = z.uuid().safeParse(c.req.param("deliveryId"));
@@ -127,7 +128,7 @@ notificationRoutes.post("/deliveries/:deliveryId/retry", requireOrganizationAdmi
   return c.json({ status: "pending" }, 202);
 });
 
-notificationRoutes.post("/webhook-alerts/:alertId/retry", requireOrganizationAdmin, async (c) => {
+notificationRoutes.post("/webhook-alerts/:alertId/retry", retryDeliveryDoc(true), requireOrganizationAdmin, async (c) => {
   c.header("Cache-Control", "no-store");
   const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
   const alertId = z.uuid().safeParse(c.req.param("alertId"));

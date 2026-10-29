@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getPath } from "hono/utils/url";
-import { openAPIRouteHandler } from "hono-openapi";
+import { generateSpecs } from "hono-openapi";
 import { auth } from "./auth";
 import { componentRoutes } from "./components/routes";
 import { componentGroupRoutes } from "./component-groups/routes";
@@ -27,7 +27,7 @@ import { healthRoutes } from "./health/routes";
 import { withClientIp } from "./http/client-ip";
 import { protectPublicRequests, publicRateLimitScope } from "./http/rate-limit";
 
-const app = new Hono();
+export const app = new Hono();
 
 app.get("/", (c) => c.text("Hello Hono!"));
 app.route("/health", healthRoutes);
@@ -84,17 +84,31 @@ app.route("/api/organizations/:organizationId/status-pages/:statusPageId/subscri
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/branding", brandingRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/templates", templateRoutes);
 
-app.get("/openapi.json", openAPIRouteHandler(app, {
-  includeEmptyPaths: false,
-  documentation: {
-    openapi: "3.1.0",
-    info: {
-      title: "Reachable API",
-      version: "0.1.0",
-      description: "Partial API reference. Only documented endpoints are included.",
+app.get("/openapi.json", async (c) => {
+  const sessionCookie = (await auth.$context).authCookies.sessionToken.name;
+  const document = await generateSpecs(app, {
+    includeEmptyPaths: false,
+    documentation: {
+      openapi: "3.1.0",
+      info: { title: "Reachable API", version: "0.1.0", description: "Authentication endpoints are not included in this document.",
+        license: { name: "GNU Affero General Public License v3.0", url: "https://www.gnu.org/licenses/agpl-3.0.html" } },
+      servers: [{ url: "/" }],
+      security: [],
+      components: { securitySchemes: {
+        session: { type: "apiKey", in: "cookie", name: sessionCookie, description: "Better Auth session cookie." },
+        integrationKey: { type: "http", scheme: "bearer", description: "Page-scoped Reachable API key." },
+      } },
     },
-  },
-}));
+  }, c);
+  for (const [path, operations] of Object.entries(document.paths)) {
+    if (!path.startsWith("/api/organizations/")) continue;
+    for (const method of ["get", "post", "put", "patch", "delete"] as const) {
+      if (operations[method]) operations[method].security = [{ session: [] }];
+    }
+  }
+  return c.json(document);
+});
+
 
 export default {
   fetch(request: Request, server: Bun.Server<unknown>) {

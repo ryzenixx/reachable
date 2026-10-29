@@ -9,13 +9,14 @@ import { recordOrganizationActivity } from "../activity/record";
 import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { pageBelongsToOrganization } from "../status-pages/queries";
 import { createApiKeySchema } from "./validation";
+import { createApiKeyDoc, deleteApiKeyDoc, listApiKeysDoc } from "./openapi";
 
 export const apiKeyRoutes = new Hono<OrganizationContext>();
 apiKeyRoutes.use("*", requireOrganization);
 apiKeyRoutes.use("*", requireOrganizationAdmin);
 apiKeyRoutes.use("*", async (c, next) => { c.header("Cache-Control", "no-store"); await next(); });
 
-apiKeyRoutes.get("/", async (c) => {
+apiKeyRoutes.get("/", listApiKeysDoc, async (c) => {
   const query = new URL(c.req.url).searchParams;
   if ([...query.keys()].some((key) => !["limit", "offset"].includes(key)) ||
     ["limit", "offset"].some((key) => query.getAll(key).length > 1)) return c.json({ error: "Invalid query parameters" }, 400);
@@ -36,7 +37,7 @@ function parseJson(value: string | null) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
-apiKeyRoutes.post("/", bodyLimit({ maxSize: 16384 }), async (c) => {
+apiKeyRoutes.post("/", createApiKeyDoc, bodyLimit({ maxSize: 16384 }), async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const input = createApiKeySchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) return c.json({ error: "Invalid input" }, 400);
@@ -58,7 +59,7 @@ apiKeyRoutes.post("/", bodyLimit({ maxSize: 16384 }), async (c) => {
     pageId: input.data.pageId, permissions: input.data.permissions }, 201);
 });
 
-apiKeyRoutes.delete("/:keyId", async (c) => {
+apiKeyRoutes.delete("/:keyId", deleteApiKeyDoc, async (c) => {
   const id = z.string().min(1).max(128).safeParse(c.req.param("keyId"));
   if (!id.success) return c.json({ error: "Invalid key ID" }, 400);
   const removed = await db.transaction(async (tx) => {

@@ -13,11 +13,28 @@ import { z } from "zod";
 import { getAsset } from "../branding/queries";
 import { assetKinds } from "../branding/validation";
 import { feedRoutes } from "../feeds/routes";
+import { historyDoc } from "../components/history-openapi";
+import { describeRoute } from "hono-openapi";
+import { listPublicIncidentsDoc } from "../incidents/openapi";
+import { listPublicMaintenancesDoc } from "../maintenances/openapi";
+import { getPublicStatusPageDoc } from "./public-openapi";
 
 export const publicStatusPageRoutes = new Hono();
 publicStatusPageRoutes.route("/", feedRoutes);
 
-publicStatusPageRoutes.get("/:slug/branding/assets/:kind", async (c) => {
+publicStatusPageRoutes.get("/:slug/branding/assets/:kind", describeRoute({
+  operationId: "getPublicBrandingAsset", summary: "Get a published branding asset", tags: ["Public status pages"],
+  parameters: [
+    { name: "slug", in: "path", required: true, schema: { type: "string" } },
+    { name: "kind", in: "path", required: true, schema: { type: "string", enum: [...assetKinds] } },
+  ],
+  responses: {
+    200: { description: "PNG image", content: { "image/png": { schema: { type: "string", format: "binary" } } } },
+    308: { description: "Redirect to the current slug", headers: { Location: { schema: { type: "string" } } } },
+    400: { description: "Invalid asset kind", content: { "application/json": { schema: { type: "object", required: ["error"], properties: { error: { type: "string" } } } } } },
+    404: { description: "Published page or asset not found", content: { "application/json": { schema: { type: "object", required: ["error"], properties: { error: { type: "string" } } } } } },
+  },
+}), async (c) => {
   c.header("Cache-Control", "no-store");
   const kind = z.enum(assetKinds).safeParse(c.req.param("kind"));
   if (!kind.success) return c.json({ error: "Invalid asset kind" }, 400);
@@ -29,7 +46,7 @@ publicStatusPageRoutes.get("/:slug/branding/assets/:kind", async (c) => {
   return new Response(new Uint8Array(asset.content), { headers: { "Content-Type": "image/png", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 });
 
-publicStatusPageRoutes.get("/:slug/components/:componentId/history", async (c) => {
+publicStatusPageRoutes.get("/:slug/components/:componentId/history", historyDoc(true, false), async (c) => {
   c.header("Cache-Control", "no-store");
   const id = z.uuid().safeParse(c.req.param("componentId"));
   if (!id.success) return c.json({ error: "Invalid component ID" }, 400);
@@ -44,7 +61,7 @@ publicStatusPageRoutes.get("/:slug/components/:componentId/history", async (c) =
   return c.json(history);
 });
 
-publicStatusPageRoutes.get("/:slug/components/:componentId/history/changes", async (c) => {
+publicStatusPageRoutes.get("/:slug/components/:componentId/history/changes", historyDoc(true, true), async (c) => {
   c.header("Cache-Control", "no-store");
   const id = z.uuid().safeParse(c.req.param("componentId"));
   if (!id.success) return c.json({ error: "Invalid component ID" }, 400);
@@ -60,7 +77,7 @@ publicStatusPageRoutes.get("/:slug/components/:componentId/history/changes", asy
   return c.json({ from: range.from, to: range.to, ...history });
 });
 
-publicStatusPageRoutes.get("/:slug/maintenances", async (c) => {
+publicStatusPageRoutes.get("/:slug/maintenances", listPublicMaintenancesDoc, async (c) => {
   c.header("Cache-Control", "no-store");
   const options = parseHistoryQuery(c.req.url, maintenanceHistoryStates);
   if (!options) return c.json({ error: "Invalid query parameters" }, 400);
@@ -69,7 +86,7 @@ publicStatusPageRoutes.get("/:slug/maintenances", async (c) => {
   return c.json(maintenances);
 });
 
-publicStatusPageRoutes.get("/:slug/incidents", async (c) => {
+publicStatusPageRoutes.get("/:slug/incidents", listPublicIncidentsDoc, async (c) => {
   c.header("Cache-Control", "no-store");
   const options = parseHistoryQuery(c.req.url, incidentHistoryStates);
   if (!options) return c.json({ error: "Invalid query parameters" }, 400);
@@ -78,7 +95,7 @@ publicStatusPageRoutes.get("/:slug/incidents", async (c) => {
   return c.json(incidents);
 });
 
-publicStatusPageRoutes.get("/:slug", async (c) => {
+publicStatusPageRoutes.get("/:slug", getPublicStatusPageDoc, async (c) => {
   c.header("Cache-Control", "no-store");
   const page = await getPublicStatusPage(c.req.param("slug"));
   if (!page) return c.json({ error: "Not found" }, 404);

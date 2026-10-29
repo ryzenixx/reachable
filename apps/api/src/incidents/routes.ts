@@ -8,6 +8,7 @@ import { parseHistoryQuery } from "../history/pagination";
 import { editMessageSchema, editTitleSchema } from "../content-edits/validation";
 import { editIncidentMessage, editIncidentTitle, listIncidentEdits } from "./edits";
 import { postmortemRoutes } from "../postmortems/routes";
+import { createHistoricalIncidentDoc, createIncidentDoc, createIncidentUpdateDoc, editIncidentMessageDoc, editIncidentTitleDoc, listIncidentEditsDoc, listIncidentsDoc } from "./openapi";
 
 type IncidentContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 
@@ -26,13 +27,13 @@ incidentRoutes.use("*", async (c, next) => {
 
 incidentRoutes.route("/:incidentId/postmortem", postmortemRoutes);
 
-incidentRoutes.get("/", async (c) => {
+incidentRoutes.get("/", listIncidentsDoc, async (c) => {
   const options = parseHistoryQuery(c.req.url, incidentHistoryStates);
   if (!options) return c.json({ error: "Invalid query parameters" }, 400);
   return c.json(await listIncidents(c.get("statusPageId"), options));
 });
 
-incidentRoutes.get("/:incidentId/edits", requireOrganizationAdmin, async (c) => {
+incidentRoutes.get("/:incidentId/edits", listIncidentEditsDoc, requireOrganizationAdmin, async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));
   if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
   const edits = await listIncidentEdits(c.get("statusPageId"), id.data);
@@ -40,7 +41,7 @@ incidentRoutes.get("/:incidentId/edits", requireOrganizationAdmin, async (c) => 
   return c.json(edits);
 });
 
-incidentRoutes.patch("/:incidentId", requireOrganizationAdmin, async (c) => {
+incidentRoutes.patch("/:incidentId", editIncidentTitleDoc, requireOrganizationAdmin, async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));
   if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -51,7 +52,7 @@ incidentRoutes.patch("/:incidentId", requireOrganizationAdmin, async (c) => {
   return c.json(updated);
 });
 
-incidentRoutes.patch("/:incidentId/updates/:updateId", requireOrganizationAdmin, async (c) => {
+incidentRoutes.patch("/:incidentId/updates/:updateId", editIncidentMessageDoc, requireOrganizationAdmin, async (c) => {
   const incidentId = z.uuid().safeParse(c.req.param("incidentId"));
   const updateId = z.uuid().safeParse(c.req.param("updateId"));
   if (!incidentId.success || !updateId.success) return c.json({ error: "Invalid ID" }, 400);
@@ -63,7 +64,7 @@ incidentRoutes.patch("/:incidentId/updates/:updateId", requireOrganizationAdmin,
   return c.json(updated);
 });
 
-incidentRoutes.post("/", requireOrganizationAdmin, async (c) => {
+incidentRoutes.post("/", createIncidentDoc, requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
     return c.json({ error: "Expected application/json" }, 415);
   }
@@ -74,7 +75,7 @@ incidentRoutes.post("/", requireOrganizationAdmin, async (c) => {
   return c.json(created, 201);
 });
 
-incidentRoutes.post("/historical", requireOrganizationAdmin, async (c) => {
+incidentRoutes.post("/historical", createHistoricalIncidentDoc, requireOrganizationAdmin, async (c) => {
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
   const parsed = createHistoricalIncidentSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
@@ -83,7 +84,7 @@ incidentRoutes.post("/historical", requireOrganizationAdmin, async (c) => {
   return c.json(created, 201);
 });
 
-incidentRoutes.post("/:incidentId/updates", requireOrganizationAdmin, async (c) => {
+incidentRoutes.post("/:incidentId/updates", createIncidentUpdateDoc, requireOrganizationAdmin, async (c) => {
   const incidentId = z.uuid().safeParse(c.req.param("incidentId"));
   if (!incidentId.success) return c.json({ error: "Invalid incident ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {

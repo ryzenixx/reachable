@@ -3,12 +3,13 @@ import { z } from "zod";
 import { requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
 import { getPostmortem, listPublications, publishPostmortem, savePostmortem } from "./queries";
 import { publishPostmortemSchema, savePostmortemSchema } from "./validation";
+import { getPostmortemDoc, listPublicationsDoc, publishPostmortemDoc, savePostmortemDoc } from "./openapi";
 
 type PostmortemContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
 export const postmortemRoutes = new Hono<PostmortemContext>();
 postmortemRoutes.use("*", requireOrganizationAdmin);
 
-postmortemRoutes.get("/", async (c) => {
+postmortemRoutes.get("/", getPostmortemDoc, async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));
   if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
   const entry = await getPostmortem(c.get("statusPageId"), id.data);
@@ -16,7 +17,7 @@ postmortemRoutes.get("/", async (c) => {
   return c.json(entry);
 });
 
-postmortemRoutes.get("/publications", async (c) => {
+postmortemRoutes.get("/publications", listPublicationsDoc, async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));
   if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
   const entries = await listPublications(c.get("statusPageId"), id.data);
@@ -24,7 +25,7 @@ postmortemRoutes.get("/publications", async (c) => {
   return c.json(entries);
 });
 
-postmortemRoutes.put("/", async (c) => {
+postmortemRoutes.put("/", savePostmortemDoc, async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));
   if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
@@ -36,7 +37,7 @@ postmortemRoutes.put("/", async (c) => {
   return c.json(entry);
 });
 
-postmortemRoutes.post("/publish", async (c) => {
+postmortemRoutes.post("/publish", publishPostmortemDoc, async (c) => {
   const id = z.uuid().safeParse(c.req.param("incidentId"));
   if (!id.success) return c.json({ error: "Invalid incident ID" }, 400);
   if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);

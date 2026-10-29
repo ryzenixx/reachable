@@ -3,11 +3,12 @@ import { z } from "zod";
 import { componentStatus } from "../db/schema/component";
 import { createComponentSchema, updateComponentSchema } from "./validation";
 
-const component = z.object({
+export const componentResponse = z.object({
   id: z.uuid(), statusPageId: z.uuid(), groupId: z.uuid().nullable(), name: z.string(),
-  description: z.string().nullable(), status: z.enum(componentStatus.enumValues),
+  description: z.string().nullable(), status: z.enum([...componentStatus.enumValues, "unknown"]),
   manualStatus: z.enum(componentStatus.enumValues), position: z.number().int(), createdAt: z.iso.datetime(),
 });
+const component = componentResponse;
 const error = z.object({ error: z.string() });
 const json = (schema: Parameters<typeof resolver>[0]) => ({ "application/json": { schema: resolver(schema) } });
 const path = (name: string, format?: string) => ({ name, in: "path" as const, required: true, schema: { type: "string" as const, ...(format && { format }) } });
