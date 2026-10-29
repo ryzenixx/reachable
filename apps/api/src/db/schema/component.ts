@@ -1,4 +1,14 @@
-import { foreignKey, index, integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  foreignKey,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { statusPage } from "./status-page";
 import { componentGroup } from "./component-group";
 
@@ -10,16 +20,26 @@ export const componentStatus = pgEnum("component_status", [
   "under_maintenance",
 ]);
 
-export const component = pgTable("component", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  statusPageId: uuid("status_page_id").notNull()
-    .references(() => statusPage.id, { onDelete: "cascade" }),
-  groupId: uuid("group_id"),
-  name: text("name").notNull(),
-  description: text("description"),
-  status: componentStatus("status").default("operational").notNull(),
-  position: integer("position").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("component_status_page_id_idx").on(table.statusPageId),
-  unique("component_id_status_page_id_unique").on(table.id, table.statusPageId),
-  foreignKey({ columns: [table.groupId, table.statusPageId], foreignColumns: [componentGroup.id, componentGroup.statusPageId] })]);
+export const component = pgTable(
+  "component",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    statusPageId: uuid("status_page_id")
+      .notNull()
+      .references(() => statusPage.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id"),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: componentStatus("status").default("operational").notNull(),
+    position: integer("position").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("component_status_page_id_idx").on(table.statusPageId),
+    unique("component_id_status_page_id_unique").on(table.id, table.statusPageId),
+    foreignKey({
+      columns: [table.groupId, table.statusPageId],
+      foreignColumns: [componentGroup.id, componentGroup.statusPageId],
+    }),
+  ],
+);

@@ -1,24 +1,25 @@
+import { isJsonContentType } from "../http/content-type";
 import { Hono } from "hono";
 import { z } from "zod";
-import { requireOrganization, requireOrganizationAdmin, type OrganizationContext } from "../organizations/access";
-import { pageBelongsToOrganization } from "../status-pages/queries";
+import {
+  requireOrganization,
+  requireOrganizationAdmin,
+  requireStatusPage,
+  type StatusPageContext,
+} from "../organizations/access";
 import { createGroup, deleteGroup, listGroups, updateGroup } from "./queries";
 import { createGroupSchema, updateGroupSchema } from "./validation";
 import { createGroupDoc, deleteGroupDoc, listGroupsDoc, updateGroupDoc } from "./openapi";
 
-type GroupContext = OrganizationContext & { Variables: OrganizationContext["Variables"] & { statusPageId: string } };
-export const componentGroupRoutes = new Hono<GroupContext>();
+export const componentGroupRoutes = new Hono<StatusPageContext>();
 componentGroupRoutes.use("*", requireOrganization);
-componentGroupRoutes.use("*", async (c, next) => {
-  const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
-  if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
-  if (!await pageBelongsToOrganization(pageId.data, c.get("organizationId"))) return c.json({ error: "Not found" }, 404);
-  c.set("statusPageId", pageId.data);
-  await next();
-});
-componentGroupRoutes.get("/", listGroupsDoc, async (c) => c.json(await listGroups(c.get("statusPageId"))));
+componentGroupRoutes.use("*", requireStatusPage);
+componentGroupRoutes.get("/", listGroupsDoc, async (c) =>
+  c.json(await listGroups(c.get("statusPageId"))),
+);
 componentGroupRoutes.post("/", createGroupDoc, requireOrganizationAdmin, async (c) => {
-  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  if (!isJsonContentType(c.req.header("content-type")))
+    return c.json({ error: "Expected application/json" }, 415);
   const parsed = createGroupSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
   return c.json(await createGroup(c.get("statusPageId"), parsed.data, c.get("userId")), 201);
@@ -26,7 +27,8 @@ componentGroupRoutes.post("/", createGroupDoc, requireOrganizationAdmin, async (
 componentGroupRoutes.patch("/:groupId", updateGroupDoc, requireOrganizationAdmin, async (c) => {
   const id = z.uuid().safeParse(c.req.param("groupId"));
   if (!id.success) return c.json({ error: "Invalid group ID" }, 400);
-  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  if (!isJsonContentType(c.req.header("content-type")))
+    return c.json({ error: "Expected application/json" }, 415);
   const parsed = updateGroupSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
   const group = await updateGroup(c.get("statusPageId"), id.data, parsed.data, c.get("userId"));
@@ -36,6 +38,7 @@ componentGroupRoutes.patch("/:groupId", updateGroupDoc, requireOrganizationAdmin
 componentGroupRoutes.delete("/:groupId", deleteGroupDoc, requireOrganizationAdmin, async (c) => {
   const id = z.uuid().safeParse(c.req.param("groupId"));
   if (!id.success) return c.json({ error: "Invalid group ID" }, 400);
-  if (!await deleteGroup(c.get("statusPageId"), id.data, c.get("userId"))) return c.json({ error: "Not found" }, 404);
+  if (!(await deleteGroup(c.get("statusPageId"), id.data, c.get("userId"))))
+    return c.json({ error: "Not found" }, 404);
   return c.body(null, 204);
 });

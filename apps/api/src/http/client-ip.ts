@@ -24,7 +24,8 @@ function parseTrustedProxies(value: string | undefined) {
     try {
       const family = isIP(host);
       if (family === 4) return new Address4(network);
-      if (host.toLowerCase().startsWith("::ffff:")) throw new Error("Mapped IPv6 proxy ranges are not supported");
+      if (host.toLowerCase().startsWith("::ffff:"))
+        throw new Error("Mapped IPv6 proxy ranges are not supported");
       return new Address6(network);
     } catch {
       throw new Error("TRUSTED_PROXY_IPS must contain valid IP addresses or CIDR ranges");

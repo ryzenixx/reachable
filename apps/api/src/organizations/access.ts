@@ -3,9 +3,15 @@ import { createMiddleware } from "hono/factory";
 import { auth } from "../auth";
 import { db } from "../db";
 import { member } from "../db/schema/auth";
+import { z } from "zod";
+import { pageBelongsToOrganization } from "../status-pages/queries";
 
 export type OrganizationContext = {
   Variables: { organizationId: string; membershipRole: string; userId: string };
+};
+
+export type StatusPageContext = OrganizationContext & {
+  Variables: OrganizationContext["Variables"] & { statusPageId: string };
 };
 
 export const requireOrganization = createMiddleware<OrganizationContext>(async (c, next) => {
@@ -34,5 +40,16 @@ export const requireOrganizationAdmin = createMiddleware<OrganizationContext>(as
     return c.json({ error: "Forbidden" }, 403);
   }
 
+  await next();
+});
+
+export const requireStatusPage = createMiddleware<StatusPageContext>(async (c, next) => {
+  c.header("Cache-Control", "no-store");
+  const pageId = z.uuid().safeParse(c.req.param("statusPageId"));
+  if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
+  if (!(await pageBelongsToOrganization(pageId.data, c.get("organizationId")))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  c.set("statusPageId", pageId.data);
   await next();
 });

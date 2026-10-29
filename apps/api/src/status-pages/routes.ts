@@ -1,13 +1,36 @@
+import { isJsonContentType } from "../http/content-type";
 import { Hono } from "hono";
 import {
   requireOrganization,
   requireOrganizationAdmin,
   type OrganizationContext,
 } from "../organizations/access";
-import { createStatusPage, getStatusPage, isStatusPageSlugAvailable, listStatusPages, setStatusPagePublication, updateStatusPage } from "./queries";
+import {
+  createStatusPage,
+  getStatusPage,
+  isStatusPageSlugAvailable,
+  listStatusPages,
+  setStatusPagePublication,
+  updateStatusPage,
+} from "./queries";
 import { setFeedEnabled } from "../feeds/queries";
-import { createStatusPageSchema, feedSettingsSchema, publicationSchema, statusPageIdSchema, statusPageSlugSchema, updateStatusPageSchema } from "./validation";
-import { createPageDoc, feedDoc, getPageDoc, listPagesDoc, publicationDoc, slugAvailabilityDoc, updatePageDoc } from "./openapi";
+import {
+  createStatusPageSchema,
+  feedSettingsSchema,
+  publicationSchema,
+  statusPageIdSchema,
+  statusPageSlugSchema,
+  updateStatusPageSchema,
+} from "./validation";
+import {
+  createPageDoc,
+  feedDoc,
+  getPageDoc,
+  listPagesDoc,
+  publicationDoc,
+  slugAvailabilityDoc,
+  updatePageDoc,
+} from "./openapi";
 
 export const statusPageRoutes = new Hono<OrganizationContext>();
 
@@ -36,17 +59,23 @@ statusPageRoutes.get("/:statusPageId", getPageDoc, async (c) => {
 statusPageRoutes.patch("/:statusPageId", updatePageDoc, requireOrganizationAdmin, async (c) => {
   const id = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
   if (!id.success) return c.json({ error: "Invalid page ID" }, 400);
-  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  if (!isJsonContentType(c.req.header("content-type")))
+    return c.json({ error: "Expected application/json" }, 415);
   const parsed = updateStatusPageSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const page = await updateStatusPage(c.get("organizationId"), id.data, parsed.data, c.get("userId"));
+  const page = await updateStatusPage(
+    c.get("organizationId"),
+    id.data,
+    parsed.data,
+    c.get("userId"),
+  );
   if (!page) return c.json({ error: "Not found" }, 404);
   if (page === "slug_taken") return c.json({ error: "Slug already in use" }, 409);
   return c.json(page);
 });
 
 statusPageRoutes.post("/", createPageDoc, requireOrganizationAdmin, async (c) => {
-  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
+  if (!isJsonContentType(c.req.header("content-type"))) {
     return c.json({ error: "Expected application/json" }, 415);
   }
 
@@ -65,27 +94,43 @@ statusPageRoutes.post("/", createPageDoc, requireOrganizationAdmin, async (c) =>
   return c.json(page, 201);
 });
 
-statusPageRoutes.patch("/:statusPageId/publication", publicationDoc, requireOrganizationAdmin, async (c) => {
-  const pageId = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
-  if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
-  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) {
-    return c.json({ error: "Expected application/json" }, 415);
-  }
-  const body = await c.req.json().catch(() => null);
-  const parsed = publicationSchema.safeParse(body);
-  if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const page = await setStatusPagePublication(c.get("organizationId"), pageId.data, parsed.data.published, c.get("userId"));
-  if (!page) return c.json({ error: "Not found" }, 404);
-  return c.json(page);
-});
+statusPageRoutes.patch(
+  "/:statusPageId/publication",
+  publicationDoc,
+  requireOrganizationAdmin,
+  async (c) => {
+    const pageId = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
+    if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
+    if (!isJsonContentType(c.req.header("content-type"))) {
+      return c.json({ error: "Expected application/json" }, 415);
+    }
+    const body = await c.req.json().catch(() => null);
+    const parsed = publicationSchema.safeParse(body);
+    if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
+    const page = await setStatusPagePublication(
+      c.get("organizationId"),
+      pageId.data,
+      parsed.data.published,
+      c.get("userId"),
+    );
+    if (!page) return c.json({ error: "Not found" }, 404);
+    return c.json(page);
+  },
+);
 
 statusPageRoutes.patch("/:statusPageId/feed", feedDoc, requireOrganizationAdmin, async (c) => {
   const pageId = statusPageIdSchema.safeParse(c.req.param("statusPageId"));
   if (!pageId.success) return c.json({ error: "Invalid page ID" }, 400);
-  if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json")) return c.json({ error: "Expected application/json" }, 415);
+  if (!isJsonContentType(c.req.header("content-type")))
+    return c.json({ error: "Expected application/json" }, 415);
   const parsed = feedSettingsSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid input" }, 400);
-  const page = await setFeedEnabled(c.get("organizationId"), pageId.data, parsed.data.enabled, c.get("userId"));
+  const page = await setFeedEnabled(
+    c.get("organizationId"),
+    pageId.data,
+    parsed.data.enabled,
+    c.get("userId"),
+  );
   if (!page) return c.json({ error: "Not found" }, 404);
   return c.json({ enabled: page.feedEnabled });
 });

@@ -8,6 +8,7 @@ export function newWebhookSecret(subscriptionId: string) {
 
 export function readWebhookSecret(encrypted: string, subscriptionId: string) {
   const value = decryptPayload(encrypted, subscriptionId, "webhook-secret");
-  if (typeof value !== "string" || !/^whsec_[A-Za-z0-9+/]{43}=$/.test(value)) throw new Error("Invalid webhook secret");
+  if (typeof value !== "string" || !/^whsec_[A-Za-z0-9+/]{43}=$/.test(value))
+    throw new Error("Invalid webhook secret");
   return value;
 }

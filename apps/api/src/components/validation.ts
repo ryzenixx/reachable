@@ -17,13 +17,15 @@ export const createComponentSchema = z.strictObject({
   groupId: fields.groupId.optional(),
 });
 
-export const updateComponentSchema = z.strictObject({
-  name: fields.name.optional(),
-  description: fields.description.optional(),
-  status: fields.status.optional(),
-  position: fields.position.optional(),
-  groupId: fields.groupId.optional(),
-}).refine((value) => Object.keys(value).length > 0);
+export const updateComponentSchema = z
+  .strictObject({
+    name: fields.name.optional(),
+    description: fields.description.optional(),
+    status: fields.status.optional(),
+    position: fields.position.optional(),
+    groupId: fields.groupId.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0);
 
 export const componentIdSchema = z.uuid();
 export type CreateComponent = z.infer<typeof createComponentSchema>;

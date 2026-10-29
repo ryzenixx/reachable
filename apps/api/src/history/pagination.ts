@@ -8,9 +8,17 @@ const cursorSchema = z.strictObject({
 export type Cursor = z.infer<typeof cursorSchema>;
 export type HistoryQuery<State extends string> = { limit: number; state: State; cursor?: Cursor };
 
-export function parseHistoryQuery<State extends string>(url: string, states: readonly State[]): HistoryQuery<State> | undefined {
+export function parseHistoryQuery<State extends string>(
+  url: string,
+  states: readonly State[],
+): HistoryQuery<State> | undefined {
   const params = new URL(url).searchParams;
-  if ([...params.keys()].some((key) => !["limit", "state", "cursor"].includes(key) || params.getAll(key).length !== 1)) return undefined;
+  if (
+    [...params.keys()].some(
+      (key) => !["limit", "state", "cursor"].includes(key) || params.getAll(key).length !== 1,
+    )
+  )
+    return undefined;
   const limitText = params.get("limit");
   if (limitText !== null && !/^[1-9]\d{0,2}$/.test(limitText)) return undefined;
   const limit = limitText === null ? 20 : Number(limitText);

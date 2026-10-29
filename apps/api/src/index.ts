@@ -33,7 +33,11 @@ app.get("/", (c) => c.text("Hello Hono!"));
 app.route("/health", healthRoutes);
 app.use("/api/*", apiCors);
 app.use("/api/*", (c, next) => {
-  const imageUpload = c.req.method === "PUT" && /^\/api\/organizations\/[^/]+\/status-pages\/[^/]+\/branding\/assets\/[^/]+\/?$/.test(c.req.path);
+  const imageUpload =
+    c.req.method === "PUT" &&
+    /^\/api\/organizations\/[^/]+\/status-pages\/[^/]+\/branding\/assets\/[^/]+\/?$/.test(
+      c.req.path,
+    );
   return bodyLimit({ maxSize: imageUpload ? 2 * 1024 * 1024 : 256 * 1024 })(c, next);
 });
 app.use("/api/*", protectPublicRequests);
@@ -49,8 +53,10 @@ app.use("/api/auth/organization/invite-member", async (c, next) => {
   await next();
 });
 app.all("/api/auth/*", async (c) => {
-  if (new URL(c.req.url).pathname.startsWith("/api/auth/api-key/")) return c.json({ error: "Not found" }, 404);
-  if (!new URL(c.req.url).pathname.startsWith("/api/auth/organization/")) return auth.handler(c.req.raw);
+  if (new URL(c.req.url).pathname.startsWith("/api/auth/api-key/"))
+    return c.json({ error: "Not found" }, 404);
+  if (!new URL(c.req.url).pathname.startsWith("/api/auth/organization/"))
+    return auth.handler(c.req.raw);
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   return withAuthActor(session?.user.id ?? null, () => auth.handler(c.req.raw));
 });
@@ -75,31 +81,74 @@ app.route("/api/organizations/:organizationId/notification-channels", channelRou
 app.route("/api/organizations/:organizationId/activity", activityRoutes);
 app.route("/api/organizations/:organizationId/invitation-deliveries", authEmailRoutes);
 app.route("/api/organizations/:organizationId/status-pages", statusPageRoutes);
-app.route("/api/organizations/:organizationId/status-pages/:statusPageId/components", componentRoutes);
-app.route("/api/organizations/:organizationId/status-pages/:statusPageId/component-groups", componentGroupRoutes);
-app.route("/api/organizations/:organizationId/status-pages/:statusPageId/incidents", incidentRoutes);
-app.route("/api/organizations/:organizationId/status-pages/:statusPageId/maintenances", maintenanceRoutes);
-app.route("/api/organizations/:organizationId/status-pages/:statusPageId/notifications", notificationRoutes);
-app.route("/api/organizations/:organizationId/status-pages/:statusPageId/subscriptions", adminSubscriptionRoutes);
+app.route(
+  "/api/organizations/:organizationId/status-pages/:statusPageId/components",
+  componentRoutes,
+);
+app.route(
+  "/api/organizations/:organizationId/status-pages/:statusPageId/component-groups",
+  componentGroupRoutes,
+);
+app.route(
+  "/api/organizations/:organizationId/status-pages/:statusPageId/incidents",
+  incidentRoutes,
+);
+app.route(
+  "/api/organizations/:organizationId/status-pages/:statusPageId/maintenances",
+  maintenanceRoutes,
+);
+app.route(
+  "/api/organizations/:organizationId/status-pages/:statusPageId/notifications",
+  notificationRoutes,
+);
+app.route(
+  "/api/organizations/:organizationId/status-pages/:statusPageId/subscriptions",
+  adminSubscriptionRoutes,
+);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/branding", brandingRoutes);
-app.route("/api/organizations/:organizationId/status-pages/:statusPageId/templates", templateRoutes);
+app.route(
+  "/api/organizations/:organizationId/status-pages/:statusPageId/templates",
+  templateRoutes,
+);
 
 app.get("/openapi.json", async (c) => {
   const sessionCookie = (await auth.$context).authCookies.sessionToken.name;
-  const document = await generateSpecs(app, {
-    includeEmptyPaths: false,
-    documentation: {
-      openapi: "3.1.0",
-      info: { title: "Reachable API", version: "0.1.0", description: "Authentication endpoints are not included in this document.",
-        license: { name: "GNU Affero General Public License v3.0", url: "https://www.gnu.org/licenses/agpl-3.0.html" } },
-      servers: [{ url: "/" }],
-      security: [],
-      components: { securitySchemes: {
-        session: { type: "apiKey", in: "cookie", name: sessionCookie, description: "Better Auth session cookie." },
-        integrationKey: { type: "http", scheme: "bearer", description: "Page-scoped Reachable API key." },
-      } },
+  const document = await generateSpecs(
+    app,
+    {
+      includeEmptyPaths: false,
+      documentation: {
+        openapi: "3.1.0",
+        info: {
+          title: "Reachable API",
+          version: "0.1.0",
+          description: "Authentication endpoints are not included in this document.",
+          license: {
+            name: "GNU Affero General Public License v3.0",
+            url: "https://www.gnu.org/licenses/agpl-3.0.html",
+          },
+        },
+        servers: [{ url: "/" }],
+        security: [],
+        components: {
+          securitySchemes: {
+            session: {
+              type: "apiKey",
+              in: "cookie",
+              name: sessionCookie,
+              description: "Better Auth session cookie.",
+            },
+            integrationKey: {
+              type: "http",
+              scheme: "bearer",
+              description: "Page-scoped Reachable API key.",
+            },
+          },
+        },
+      },
     },
-  }, c);
+    c,
+  );
   for (const [path, operations] of Object.entries(document.paths)) {
     if (!path.startsWith("/api/organizations/")) continue;
     for (const method of ["get", "post", "put", "patch", "delete"] as const) {
@@ -109,11 +158,11 @@ app.get("/openapi.json", async (c) => {
   return c.json(document);
 });
 
-
 export default {
   fetch(request: Request, server: Bun.Server<unknown>) {
     const path = getPath(request);
-    const needsClientIp = path.startsWith("/api/auth/") || publicRateLimitScope(path, request.method);
+    const needsClientIp =
+      path.startsWith("/api/auth/") || publicRateLimitScope(path, request.method);
     if (!needsClientIp || request.method === "OPTIONS") return app.fetch(request);
     const safeRequest = withClientIp(request, server.requestIP(request)?.address);
     if (!safeRequest) return new Response("Invalid client IP", { status: 400 });

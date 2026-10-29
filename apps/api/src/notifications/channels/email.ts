@@ -13,11 +13,21 @@ export async function sendEmail(notification: EmailNotification): Promise<void> 
     throw new DeliveryFailure("configuration");
   }
 
-  transporter ??= nodemailer.createTransport(smtpUrl);
+  transporter ??= nodemailer.createTransport({
+    url: smtpUrl,
+    connectionTimeout: 30_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 60_000,
+    dnsTimeout: 10_000,
+  });
   const parsedFrom = notification.senderName ? parseOneAddress(from) : undefined;
-  if (notification.senderName && (!parsedFrom || parsedFrom.type !== "mailbox")) throw new DeliveryFailure("configuration");
+  if (notification.senderName && (!parsedFrom || parsedFrom.type !== "mailbox"))
+    throw new DeliveryFailure("configuration");
   await transporter.sendMail({
-    from: notification.senderName && parsedFrom?.type === "mailbox" ? { name: notification.senderName, address: parsedFrom.address } : from,
+    from:
+      notification.senderName && parsedFrom?.type === "mailbox"
+        ? { name: notification.senderName, address: parsedFrom.address }
+        : from,
     to: notification.to,
     replyTo: notification.replyTo,
     subject: notification.subject,

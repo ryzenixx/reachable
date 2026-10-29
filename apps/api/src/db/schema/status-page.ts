@@ -13,7 +13,13 @@ export const statusPage = pgTable("status_page", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const statusPageSlug = pgTable("status_page_slug", {
-  slug: text("slug").primaryKey(),
-  statusPageId: uuid("status_page_id").notNull().references(() => statusPage.id, { onDelete: "cascade" }),
-}, (table) => [index("status_page_slug_page_id_idx").on(table.statusPageId)]);
+export const statusPageSlug = pgTable(
+  "status_page_slug",
+  {
+    slug: text("slug").primaryKey(),
+    statusPageId: uuid("status_page_id")
+      .notNull()
+      .references(() => statusPage.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("status_page_slug_page_id_idx").on(table.statusPageId)],
+);
