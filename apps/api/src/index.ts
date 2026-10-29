@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getPath } from "hono/utils/url";
+import { openAPIRouteHandler } from "hono-openapi";
 import { auth } from "./auth";
 import { componentRoutes } from "./components/routes";
 import { componentGroupRoutes } from "./component-groups/routes";
@@ -82,6 +83,18 @@ app.route("/api/organizations/:organizationId/status-pages/:statusPageId/notific
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/subscriptions", adminSubscriptionRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/branding", brandingRoutes);
 app.route("/api/organizations/:organizationId/status-pages/:statusPageId/templates", templateRoutes);
+
+app.get("/openapi.json", openAPIRouteHandler(app, {
+  includeEmptyPaths: false,
+  documentation: {
+    openapi: "3.1.0",
+    info: {
+      title: "Reachable API",
+      version: "0.1.0",
+      description: "Partial API reference. Only documented endpoints are included.",
+    },
+  },
+}));
 
 export default {
   fetch(request: Request, server: Bun.Server<unknown>) {
